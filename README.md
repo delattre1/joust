@@ -18,7 +18,7 @@ until it reads it.
 You need Git, Docker and Docker Compose v2.
 
 ```bash
-git clone https://github.com/baskpascal/joust.git && cd joust
+git clone https://github.com/santleme/joust.git && cd joust
 ```
 
 Mint a Plow credential with the official helper. It writes `./plow-credentials`,
@@ -51,10 +51,12 @@ VM. The hosted image is credential-free and tenant-free: Plow supplies
 configured). The image is then registered through Plow's hosted registry and
 provisioner, which are not exposed by the public `plow-agents` CLI.
 
-The image contains no Plow or GitHub credentials. Provisioning supplies a
-stable `AGENT_ID` and mounts the Plow credential at runtime. The persistent
-Compose home holds mission state, generated projects, and the installation's
-GitHub session; a new home starts disconnected from GitHub.
+The image contains no Plow or GitHub credentials. In self-hosted Compose,
+`env_file` supplies the line-scoped credential at runtime; hosted Plow supplies
+`PLOW_API_BASE` and the tenant identity and may proxy authentication, so a raw
+token need not exist in the tenant VM. The persistent Compose home holds
+mission state, generated projects, and the installation's GitHub session; a new
+home starts disconnected from GitHub.
 
 ## First mission
 

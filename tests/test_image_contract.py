@@ -93,3 +93,12 @@ def test_provisioning_owns_agent_id_and_github_auth_is_volume_scoped():
     assert "COPY .env" not in dockerfile
     assert "COPY plow-credentials" not in dockerfile
     assert "hosts.yml" not in dockerfile
+
+
+def test_docs_distinguish_self_hosted_credentials_from_hosted_identity():
+    readme = (ROOT / "README.md").read_text()
+    assert "https://github.com/santleme/joust.git" in readme
+    assert "https://github.com/baskpascal/joust.git" not in readme
+    assert "env_file" in readme
+    assert "PLOW_API_BASE" in readme
+    assert "mounts the Plow credential at runtime" not in readme
