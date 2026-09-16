@@ -32,6 +32,14 @@ def test_variant_persona_owns_the_public_agent_identity():
     assert "Never introduce yourself by that label" in persona
 
 
+def test_variant_persona_has_model_driven_first_contact_onboarding():
+    persona = (ROOT / "runtime/persona.md").read_text()
+    assert "## First contact and onboarding" in persona
+    assert "Match the user's language and tone" in persona
+    assert "invite the user to share a" in persona
+    assert "not a keyword-triggered script or a deterministic branch" in persona
+
+
 def test_agent_index_client_and_supervision_are_pinned_and_wired():
     pin = (ROOT / "vendor/client.pin").read_text()
     dockerfile = (ROOT / "Dockerfile").read_text()
