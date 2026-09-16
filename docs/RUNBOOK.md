@@ -7,16 +7,15 @@ tests, and `doctor`. The fixture E2E is offline and makes no external writes.
 
 ## Plow deployment
 
-Generate `plow-credentials` locally with `plow-agents login`, send the printed
-activation phrase from the account owner's phone as prompted, list lines, and
-mint a free line. Choose a stable `AGENT_ID` yourself (for example,
-`galahad-hackathon`); Plow does not assign it. After installing the official
-CLI version that includes [one-click deploy](https://github.com/plow-pbc/plow-agents/pull/28),
-use `scripts/deploy.ps1 -Line ln_xxx -Image ghcr.io/account/joust:v1` for a
-digest-only cloud deploy, or add `-Local` for the Compose path. Build and
-start only after keeping the credential file out of the image and Git.
-Verified status is a separate eligibility request; the agent is eligible for
-the competition only after the Agent Index shows it in the Verified section.
+For a self-hosted run, use the public CLI to log in, list lines, and mint a
+line-scoped credential; Compose loads it through `env_file` and keeps it out of
+the image and Git. For a hosted/cloud run, do not run `login` or `mint` in the
+tenant VM: the Plow provisioner supplies `PLOW_API_BASE` and the tenant
+identity, and may proxy authentication without exposing a raw bearer there.
+The hosted registry/provisioner handoff is Plow-side, not a command in the
+public `plow-agents` CLI. Verified status is a separate eligibility request;
+the agent is eligible for the competition only after the Agent Index shows it
+in the Verified section.
 
 ## Operational chat channel
 

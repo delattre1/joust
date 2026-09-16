@@ -1,14 +1,13 @@
 services:
   agent:
     build: .
+    # Self-hosted only: plow-agents mint writes this KEY=VALUE file. Hosted
+    # Plow does not read Compose and injects PLOW_API_BASE/identity itself.
+    env_file: ${PLOW_CREDENTIALS:-${PLOW_CREDENTIALS_PATH:-./plow-credentials}}
     environment:
       AGENT_ID: ${AGENT_ID:?Set AGENT_ID to your stable Agent Index id}
       GH_CONFIG_DIR: /var/lib/hermes/.config/gh
     volumes:
-      # Overridable so the token can live on a filesystem that honours
-      # POSIX modes. A repository checkout on a Windows drive mounted
-      # under WSL reports 0777 no matter what chmod is asked for.
-      - ${PLOW_CREDENTIALS_PATH:-./plow-credentials}:/var/lib/plow/credentials.host:ro
       - agent-home:/var/lib/hermes
     # Keep the local installation available after a transient supervised
     # process failure. The cloud deployer owns lifecycle there.
