@@ -10,6 +10,9 @@ services:
       # under WSL reports 0777 no matter what chmod is asked for.
       - ${PLOW_CREDENTIALS_PATH:-./plow-credentials}:/var/lib/plow/credentials.host:ro
       - agent-home:/var/lib/hermes
+    # Keep the local installation available after a transient supervised
+    # process failure. The cloud deployer owns lifecycle there.
+    restart: unless-stopped
     stop_grace_period: 35s
 
 volumes:

@@ -45,6 +45,26 @@ When it says ready:
 docker compose up --build -d
 ```
 
+### One-command deploy
+
+The official `plow-agents` deploy command is currently being finalized in
+[PR #28](https://github.com/plow-pbc/plow-agents/pull/28). After installing that
+CLI (or a released version containing it), this repository provides a thin
+wrapper that builds, pushes, converts the image to a digest, and deploys it:
+
+```powershell
+.\scripts\deploy.ps1 -Line ln_xxx -Image ghcr.io/YOUR_ACCOUNT/joust:v1
+```
+
+The registry login and Plow login are still operator-owned prerequisites. For
+the local path, the same wrapper delegates to the official Compose flow:
+
+```powershell
+.\scripts\deploy.ps1 -Line ln_xxx -Local
+```
+
+Cloud deployment is digest-only; tags are never sent to Plow.
+
 The image contains no Plow or GitHub credentials. Provisioning supplies a
 stable `AGENT_ID` and mounts the Plow credential at runtime. The persistent
 Compose home holds mission state, generated projects, and the installation's

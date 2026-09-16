@@ -75,7 +75,7 @@ The current evidence boundary is:
 | GitHub project connection | Typed `gh` adapter supports lookup, read-only clone/bootstrap, branches, push, PR, and checks; publication is approval-bound | PARTIAL (live clone/push/PR not exercised) |
 | Coding agent integration | Dedicated `HermesImplementer` plus a live Joust cycle created and validated a three-file Python project with 16 generated tests and clean-clone reproduction | PASS (live model-backed local E2E) |
 | Target-bound submission pack | `prepare-project-submission` generates repository/branch/SHA/diff-bound artifacts and requires final review, compliance, tests, demo, and clean-clone evidence | PASS (local E2E) |
-| One-click Plow deploy, demo media, Verified | External organizer/Plow steps, not represented by local code | EXTERNAL / PENDING |
+| One-click Plow deploy, demo media, Verified | Thin digest-only wrapper is present; CLI release, account/line provisioning, demo media, and Verified remain external | PARTIAL / EXTERNAL |
 
 The remaining partial rows are deliberate authority boundaries, not hidden claims:
 the local build can prove a commit and reproducibility without pretending that a

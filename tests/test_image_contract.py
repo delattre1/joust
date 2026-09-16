@@ -11,6 +11,8 @@ def test_variant_uses_immutable_official_base_and_does_not_vendor_runtime():
         dockerfile,
         re.MULTILINE,
     )
+    assert "base-c96adf18b1b660d059efb0429df455558cdb1ef0" in dockerfile
+    assert "sha256:6c4089e1002fcfb9de4378992a43285040f7c8676e62662e206762820e41b913" in dockerfile
     assert not (ROOT / "image/s6-overlay/scripts/plow-init.py").exists()
     assert not (ROOT / "image/seed/SOUL.md").exists()
     assert (ROOT / "runtime/persona.md").is_file()
@@ -85,6 +87,17 @@ def test_provisioning_owns_agent_id_and_github_auth_is_volume_scoped():
     assert "AGENT_ID: ${AGENT_ID:?" in compose
     assert "GH_CONFIG_DIR: /var/lib/hermes/.config/gh" in compose
     assert "agent-home:/var/lib/hermes" in compose
+    assert "restart: unless-stopped" in compose
     assert "COPY .env" not in dockerfile
     assert "COPY plow-credentials" not in dockerfile
     assert "hosts.yml" not in dockerfile
+
+
+def test_one_click_deploy_wraps_the_official_cli_without_reading_secrets():
+    script = (ROOT / "scripts/deploy.ps1").read_text()
+    assert "plow-agents" in script
+    assert "image build" in script
+    assert "image push" in script
+    assert "deploy --local" in script
+    assert "PLOW_AGENT_TOKEN" not in script
+    assert ".env" not in script

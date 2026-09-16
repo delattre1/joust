@@ -1,7 +1,9 @@
 # Joust is a Plow Hermes variant. Generic runtime behavior stays in the
 # immutable upstream base; this image owns only its persona, skills, mission
 # package, and supervised Agent Index reporter.
-FROM public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-8710797b6409c77df560c6198407765d138ea617@sha256:b9627febe57e34ec0df373709ad91a27a7fda68093e76d519678cac1012614f9
+# Last published base currently available in the official registry. Keep this
+# immutable until a newer published digest is verified end to end.
+FROM public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-c96adf18b1b660d059efb0429df455558cdb1ef0@sha256:6c4089e1002fcfb9de4378992a43285040f7c8676e62662e206762820e41b913
 
 # GitHub is part of Joust's execution/observation plane. Keep the package
 # version explicit so a rebuild cannot silently change the CLI contract.
