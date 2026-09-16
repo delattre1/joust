@@ -59,7 +59,27 @@ The user supplied a new Joust SDD whose available attachment ends at section
 the system is a persistent competition agent organized around control,
 execution, and observation planes and a continuing compete loop.
 
-The deployed Agent Index identity remains Joust until an explicit external
-rebrand decision is made. Internal contracts are extended compatibly first;
-the repository, agent id, and published profile are not silently renamed. The
-missing portion of the truncated SDD is not inferred.
+The product/display name is Joust. The external Agent Index identifier remains
+`galahad-hackathon`; it is a stable public ID, not a product or repository
+name. A product rename, repository move, and Agent Index ID change are separate
+decisions and must not be inferred from one another. Internal contracts are
+extended compatibly first. The missing portion of the truncated SDD is not
+inferred.
+
+## ADR-008 — One model-backed mission intake
+
+`mission joust-it` is the canonical operator intake. `mission create` remains
+an alias to the same model-backed path for existing Plow skills. The older
+deterministic `run_vertical_slice` and `complete_v0` helpers remain available
+to offline tests only; production CLI commands do not route missions through
+them. With no model provider, intake records a visible blocked mission and
+creates no project.
+
+## ADR-009 — Monitored cycle invocation; scheduler remains external
+
+`mission compete-run` executes one lease-guarded, fingerprinted monitoring
+attempt and ingests Agent Index metrics when `AGENT_ID` is provisioned. The
+command is safe to invoke periodically, but this repository does not claim an
+automatic schedule until the pinned Hermes base/runtime and a persisted job
+configuration are verified together. Do not add a second scheduler service to
+the variant without that compatibility check.

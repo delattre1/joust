@@ -8,7 +8,7 @@ tests, and `doctor`. The fixture E2E is offline and makes no external writes.
 ## Plow deployment
 
 Generate `plow-credentials` locally with `plow-agents login`, send the printed
-activation phrase by SMS/iMessage, list lines, and mint a free line. Choose a
+activation phrase from the account owner's phone as prompted, list lines, and mint a free line. Choose a
 stable `AGENT_ID` yourself (for example, `galahad-hackathon`); Plow does not
 assign it. Build and start with Docker Compose, keeping the credential file
 out of the image and Git. Verified status is a separate eligibility request;
@@ -17,12 +17,12 @@ in the Verified section.
 
 ## Operational chat channel
 
-The live product channel for this installation is the Plow phone line provided
-by `hermes-plow-plugin`, reached through SMS. iMessage may be used during line
-activation where supported. A browser ChatGPT or custom-GPT conversation is a
-separate interface; it does not prove that the SMS agent received or executed
-the message. End-to-end acceptance tests must send the messages through the
-live SMS line and then verify the container's durable state.
+The live product channel for this installation is its Plow Chat phone line.
+The provider/channel is determined by the provisioned line and current plugin
+configuration. A browser ChatGPT or custom-GPT conversation is a separate
+interface; it does not prove that Plow Chat received or executed the message.
+End-to-end acceptance tests must use the provisioned line and then verify the
+container's durable state.
 
 ## Recovery
 
@@ -52,7 +52,7 @@ The GitHub identity boundary is installation-scoped: one Joust installation
 and its persistent Hermes volume retain one connected GitHub account. A fresh
 volume starts disconnected and must never inherit a creator's `~/.config/gh`
 or any image-baked configuration. This supports one instance per user. A
-single hosted instance shared by many SMS users cannot provide separate
+single hosted instance shared by many phone-line users cannot provide separate
 per-user GitHub identities with the current `gh` model; that future shape
 requires per-user OAuth or GitHub App authorization.
 

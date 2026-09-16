@@ -1,4 +1,6 @@
+import hashlib
 import json
+from typing import ClassVar
 
 import pytest
 
@@ -19,6 +21,7 @@ from hackathon_competitor.models import (
     CompetitionCycle,
     CompetitionObservation,
     Mission,
+    ModelInvocationStatus,
 )
 from hackathon_competitor.storage import Database
 
@@ -34,7 +37,7 @@ class Reasoner:
 
 
 class CapturingShell:
-    calls = []
+    calls: ClassVar[list[tuple[list[str], float]]] = []
     scripted_response = "{}"
     raises: BaseException | None = None
 
@@ -296,6 +299,50 @@ def test_planner_prompt_omits_durable_ids_and_bounds_context(tmp_path):
     assert len(reasoner.last_prompt) < 12000
 
 
+def test_planner_records_hashes_of_prompt_and_context_without_storing_text(tmp_path):
+    database, mission, observation = _mission_observation(tmp_path)
+    response = json.dumps(
+        {
+            "bottleneck": "Observe",
+            "candidates": [
+                {
+                    "name": "Watch",
+                    "description": "Collect evidence",
+                    "action_type": "CUSTOM",
+                    "expected_outcome_improvement": 0.1,
+                    "time_cost": 1.0,
+                    "technical_risk": 0.0,
+                    "regression_probability": 0.0,
+                }
+            ],
+        }
+    )
+    reasoner = Reasoner(response)
+    planner = HermesCompetitionPlanner(
+        database,
+        reasoner,
+        allowed_action_types={CompetitionActionType.CUSTOM},
+    )
+
+    planner.assess(mission, observation)
+
+    invocations = database.list_model_invocations(mission.id)
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    serialized = invocation.model_dump_json()
+    context_text = reasoner.last_prompt.split("\ncontext=", 1)[1]
+    context = json.loads(context_text)
+    canonical_context = json.dumps(context, sort_keys=True, default=str)
+    assert invocation.purpose == "competition_assessment"
+    assert invocation.status == ModelInvocationStatus.SUCCEEDED
+    assert invocation.prompt_hash == hashlib.sha256(reasoner.last_prompt.encode()).hexdigest()
+    assert invocation.input_context_hash == hashlib.sha256(
+        canonical_context.encode()
+    ).hexdigest()
+    assert reasoner.last_prompt not in serialized
+    assert mission.objective not in serialized
+
+
 def test_planner_prompt_includes_project_summary_and_recent_outcomes(tmp_path):
     database, mission, observation = _mission_observation(tmp_path)
     (tmp_path / "README.md").write_text("Uses the official Agent Index client.", encoding="utf-8")
@@ -389,6 +436,71 @@ def test_planner_timeout_falls_back_to_audited_local_build(tmp_path):
     assert plan.candidates[0].action_type == CompetitionActionType.BUILD_PROJECT
     assert "Do not push" in plan.candidates[0].parameters["specification"]
     assert any(
+        event["event_type"] == "COMPETITION_PLANNER_FALLBACK"
+        for event in database.events(mission.id)
+    )
+
+
+def test_typed_model_timeout_is_recorded_unavailable_and_uses_fallback(tmp_path):
+    database, mission, observation = _mission_observation(tmp_path)
+    from hackathon_competitor.models import ProjectMode, ProjectTarget
+
+    target = ProjectTarget(
+        mission_id=mission.id,
+        mode=ProjectMode.LOCAL_ONLY,
+        local_path=str(tmp_path),
+        test_commands=[["python", "-m", "pytest", "-q"]],
+    )
+    database.save_project_target(target)
+    database.attach_project_target(mission.id, target.id)
+
+    class TimedOutHermesReasoner:
+        provider = "plow"
+        model = "test-model"
+
+        def complete(self, prompt):
+            raise ModelUnavailable("MODEL_TIMEOUT", "no answer in 42s")
+
+    planner = HermesCompetitionPlanner(
+        database,
+        TimedOutHermesReasoner(),
+        allowed_action_types={CompetitionActionType.BUILD_PROJECT},
+    )
+
+    plan = planner.assess(mission, observation)
+
+    assert plan.candidates[0].action_type == CompetitionActionType.BUILD_PROJECT
+    assert (
+        database.list_model_invocations(mission.id)[0].status
+        == ModelInvocationStatus.UNAVAILABLE
+    )
+    assert any(
+        event["event_type"] == "COMPETITION_PLANNER_FALLBACK"
+        for event in database.events(mission.id)
+    )
+
+
+def test_non_timeout_model_unavailability_does_not_use_timeout_fallback(tmp_path):
+    database, mission, observation = _mission_observation(tmp_path)
+
+    class UnavailableHermesReasoner:
+        def complete(self, prompt):
+            raise ModelUnavailable("MODEL_AUTHENTICATION_FAILED", "expired token")
+
+    planner = HermesCompetitionPlanner(
+        database,
+        UnavailableHermesReasoner(),
+        allowed_action_types={CompetitionActionType.CUSTOM},
+    )
+
+    with pytest.raises(ModelUnavailable, match="MODEL_AUTHENTICATION_FAILED"):
+        planner.assess(mission, observation)
+
+    assert (
+        database.list_model_invocations(mission.id)[0].status
+        == ModelInvocationStatus.UNAVAILABLE
+    )
+    assert not any(
         event["event_type"] == "COMPETITION_PLANNER_FALLBACK"
         for event in database.events(mission.id)
     )

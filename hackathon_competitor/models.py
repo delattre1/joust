@@ -623,6 +623,8 @@ class ActionExecution(Contract):
     error: str | None = None
     started_at: datetime = Field(default_factory=utcnow)
     finished_at: datetime | None = None
+    owner_pid: int | None = None
+    owner_process_instance: str | None = None
 
 
 class AssessmentPlan(Contract):
@@ -848,7 +850,7 @@ class ObservedExternalResult(Contract):
     observed_at: datetime = Field(default_factory=utcnow)
 
     @model_validator(mode="after")
-    def _pending_is_not_success(self) -> "ObservedExternalResult":
+    def _pending_is_not_success(self) -> ObservedExternalResult:
         if self.pending_external and self.matches_expected:
             raise ValueError("a pending external result cannot also match the expected state")
         return self

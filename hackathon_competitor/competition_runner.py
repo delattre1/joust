@@ -15,8 +15,8 @@ from .models import (
     CompetitionObservation,
     Measurement,
     Mission,
-    MissionStatus,
     MissionState,
+    MissionStatus,
 )
 from .observation import CompetitionObserver
 from .storage import Database
@@ -50,7 +50,7 @@ class CompetitionMeasurer(Protocol):
 class CompetitionIterationRunner:
     """Resume and finish one durable COMPETE iteration.
 
-    Hermes cron owns scheduling. This runner owns deterministic stage
+    The caller owns scheduling. This runner owns deterministic stage
     progression and can be called again after a process restart.
     """
 
@@ -71,7 +71,10 @@ class CompetitionIterationRunner:
 
     def run(self, mission_id: UUID) -> CompetitionCycle | None:
         mission = self.database.get_mission(mission_id)
-        if mission.status != MissionStatus.ACTIVE or mission.state in {MissionState.PAUSED, MissionState.CANCELLED}:
+        if mission.status != MissionStatus.ACTIVE or mission.state in {
+            MissionState.PAUSED,
+            MissionState.CANCELLED,
+        }:
             return None
         cycles = self.database.list_competition_cycles(mission.id)
         cycle = cycles[-1] if cycles and cycles[-1].completed_at is None else None
@@ -169,7 +172,7 @@ class CompetitionIterationRunner:
             if item.cycle_id == cycle.id
         ]
         if observations:
-            return observations[-1]
+            return self.observer.reconcile(observations[-1])
         if cycle.stage != CompeteStage.OBSERVE:
             raise CompeteLoopError("cycle advanced without a durable observation")
         return self.observer.capture(cycle.id)

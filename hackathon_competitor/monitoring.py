@@ -6,15 +6,16 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from uuid import UUID
+from threading import Event, Thread
+from uuid import UUID, uuid4
 
 from .compete_loop import CompeteLoop
 from .competition_runner import CompetitionIterationRunner
 from .models import (
     CompeteStage,
     CompetitionObservation,
-    MissionStatus,
     MissionState,
+    MissionStatus,
     MonitorOutcome,
     MonitorRunResult,
     utcnow,
@@ -89,6 +90,8 @@ class MonitoredCompetitionRunner:
         self.lease_duration = lease_duration
         self.backoff = backoff or BackoffPolicy()
         self.random_unit = random_unit
+        if self.lease_duration <= timedelta(0):
+            raise ValueError("lease_duration must be positive")
 
     def run(
         self,
@@ -115,10 +118,11 @@ class MonitoredCompetitionRunner:
             )
 
         lease_key = f"mission:{mission.id}:{self.monitor_type}"
+        lease_holder = f"{holder}:{uuid4()}"
         acquired = self.database.acquire_monitor_lease(
             lease_key=lease_key,
             mission_id=mission.id,
-            holder=holder,
+            holder=lease_holder,
             acquired_at=captured_at,
             expires_at=captured_at + self.lease_duration,
         )
@@ -129,12 +133,51 @@ class MonitoredCompetitionRunner:
                 monitor_type=self.monitor_type,
             )
 
+        heartbeat_stop = Event()
+        heartbeat_lost = Event()
+        heartbeat = Thread(
+            target=self._renew_lease_until_stopped,
+            args=(lease_key, lease_holder, heartbeat_stop, heartbeat_lost),
+            name=f"joust-monitor-lease-{mission.id}",
+            daemon=True,
+        )
+        heartbeat.start()
         try:
-            return self._run_acquired(mission.id, captured_at)
+            result = self._run_acquired(mission.id, captured_at)
+            if heartbeat_lost.is_set():
+                raise RuntimeError("monitor lease was lost while the iteration was running")
+            return result
         except Exception as exc:  # noqa: BLE001 - cron boundary converts failure to durable state
             return self._record_failure(mission.id, captured_at, exc)
         finally:
-            self.database.release_monitor_lease(lease_key=lease_key, holder=holder)
+            heartbeat_stop.set()
+            heartbeat.join()
+            self.database.release_monitor_lease(lease_key=lease_key, holder=lease_holder)
+
+    def _renew_lease_until_stopped(
+        self,
+        lease_key: str,
+        holder: str,
+        stop: Event,
+        lost: Event,
+    ) -> None:
+        interval = min(self.lease_duration.total_seconds() / 3, 30.0)
+        while not stop.wait(interval):
+            renewed_at = utcnow()
+            try:
+                renewed = self.database.renew_monitor_lease(
+                    lease_key=lease_key,
+                    holder=holder,
+                    expires_at=renewed_at + self.lease_duration,
+                )
+            except Exception:  # noqa: BLE001 - an unrenewed lease must fail closed
+                # A transient SQLite error is not proof that another worker
+                # owns the lease. Retry; the unique holder token prevents a
+                # late renewal from overwriting a successor's lease.
+                renewed = None
+            if renewed is False:
+                lost.set()
+                return
 
     def _run_acquired(self, mission_id: UUID, now: datetime) -> MonitorRunResult:
         mission = self.database.get_mission(mission_id)

@@ -206,49 +206,88 @@ class CompetitionObserver:
         cycle = self.database.get_competition_cycle(observation.cycle_id)
         if cycle.stage != CompeteStage.OBSERVE:
             raise ValueError(f"competition cycle requires OBSERVE, got {cycle.stage.value}")
-        mission = self.database.get_mission(observation.mission_id)
         self.database.save_competition_observation(observation)
-        evidence = Evidence(
-            mission_id=mission.id,
-            claim=f"Competition observation {observation.id} captured",
-            source_type="competition_observation",
-            source_uri=None,
-            excerpt=json.dumps(
-                {
-                    "deadline_state": observation.deadline_state,
-                    "repository_revision": observation.repository_revision,
-                    "repository_dirty": observation.repository_dirty,
-                    "latest_change_status": observation.latest_change_status,
-                    "build_summary": observation.build_summary,
-                    "github_checks": observation.github_checks,
-                    "deployment_health": observation.deployment_health,
-                    "score_signals": observation.score_signals,
-                    "findings": observation.findings,
-                    "uncertainties": observation.uncertainties,
-                },
-                sort_keys=True,
+        return self.reconcile(observation)
+
+    def reconcile(self, observation: CompetitionObservation) -> CompetitionObservation:
+        """Advance a cycle from its persisted observation, safely after restart."""
+        persisted = next(
+            (
+                item
+                for item in self.database.list_competition_observations(observation.mission_id)
+                if item.id == observation.id
             ),
-            confidence=1.0 if not observation.uncertainties else 0.7,
-            authority="joust-observation-plane",
-            retrieved_at=observation.observed_at,
+            None,
         )
-        self.database.save_evidence(evidence)
-        observation.evidence_ids.append(evidence.id)
-        self.database.save_competition_observation(observation)
-        CompeteLoop(self.database).observe(
-            cycle.id,
-            self._summary(observation),
-            evidence_ids=observation.evidence_ids,
+        if persisted is None:
+            raise ValueError("cannot reconcile an observation before it is persisted")
+        observation = persisted
+        if not observation.evidence_ids:
+            claim = f"Competition observation {observation.id} captured"
+            existing_evidence = [
+                item
+                for item in self.database.list_evidence(observation.mission_id)
+                if item.source_type == "competition_observation" and item.claim == claim
+            ]
+            if existing_evidence:
+                observation.evidence_ids.append(existing_evidence[-1].id)
+            else:
+                evidence = Evidence(
+                    mission_id=observation.mission_id,
+                    claim=claim,
+                    source_type="competition_observation",
+                    source_uri=None,
+                    excerpt=json.dumps(
+                        {
+                            "deadline_state": observation.deadline_state,
+                            "repository_revision": observation.repository_revision,
+                            "repository_dirty": observation.repository_dirty,
+                            "latest_change_status": observation.latest_change_status,
+                            "build_summary": observation.build_summary,
+                            "github_checks": observation.github_checks,
+                            "deployment_health": observation.deployment_health,
+                            "score_signals": observation.score_signals,
+                            "findings": observation.findings,
+                            "uncertainties": observation.uncertainties,
+                        },
+                        sort_keys=True,
+                    ),
+                    confidence=1.0 if not observation.uncertainties else 0.7,
+                    authority="joust-observation-plane",
+                    retrieved_at=observation.observed_at,
+                )
+                self.database.save_evidence(evidence)
+                observation.evidence_ids.append(evidence.id)
+            self.database.save_competition_observation(observation)
+        cycle = self.database.get_competition_cycle(observation.cycle_id)
+        summary = self._summary(observation)
+        if cycle.stage == CompeteStage.OBSERVE:
+            CompeteLoop(self.database).observe(
+                cycle.id,
+                summary,
+                evidence_ids=observation.evidence_ids,
+            )
+        elif (
+            cycle.observation != summary
+            or cycle.observation_evidence_ids != observation.evidence_ids
+        ):
+            raise ValueError("competition cycle advanced with a different observation")
+
+        captured_event_exists = any(
+            event["event_type"] == "COMPETITION_OBSERVATION_CAPTURED"
+            and event["payload"].get("observation_id") == str(observation.id)
+            for event in self.database.events(observation.mission_id)
         )
-        self.database.append_event(
-            mission.id,
-            "COMPETITION_OBSERVATION_CAPTURED",
-            {
-                "observation_id": str(observation.id),
-                "cycle_id": str(cycle.id),
-                "evidence_ids": [str(item) for item in observation.evidence_ids],
-            },
-        )
+        if not captured_event_exists:
+            self.database.append_event(
+                observation.mission_id,
+                "COMPETITION_OBSERVATION_CAPTURED",
+                {
+                    "observation_id": str(observation.id),
+                    "cycle_id": str(observation.cycle_id),
+                    "evidence_ids": [str(item) for item in observation.evidence_ids],
+                },
+            )
         return observation
 
     @staticmethod

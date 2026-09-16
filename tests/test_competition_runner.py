@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+import hackathon_competitor.observation as observation_module
 from hackathon_competitor.compete_loop import CompeteLoop
 from hackathon_competitor.competition_actions import CompetitionActionDispatcher
 from hackathon_competitor.competition_runner import CompetitionIterationRunner
@@ -60,10 +61,20 @@ class FailingPlanner(Planner):
         raise TimeoutError("planner timed out")
 
 
-def _runner(database):
+class CountingObserver(CompetitionObserver):
+    def __init__(self, database, captured_cycles):
+        super().__init__(database)
+        self.captured_cycles = captured_cycles
+
+    def capture(self, cycle_id, **kwargs):
+        self.captured_cycles.append(cycle_id)
+        return super().capture(cycle_id, **kwargs)
+
+
+def _runner(database, observer=None):
     return CompetitionIterationRunner(
         database,
-        CompetitionObserver(database),
+        observer or CompetitionObserver(database),
         Planner(),
         CompetitionActionDispatcher(
             database,
@@ -115,6 +126,62 @@ def test_iteration_runner_resumes_after_execution_without_duplicate(tmp_path):
     assert next_cycle is not None
     assert len(database.list_action_executions(mission.id)) == 1
     assert database.list_competition_cycles(mission.id)[0].completed_at is not None
+
+
+def test_iteration_runner_recovers_persisted_observation_without_recapturing(
+    tmp_path,
+    monkeypatch,
+):
+    database_path = tmp_path / "state.db"
+    database = Database(database_path)
+    database.migrate()
+    mission = Mission(title="Observe recovery", objective="compete", workspace_path=str(tmp_path))
+    database.save_mission(mission)
+    captured_cycles = []
+    first_runner = _runner(database, CountingObserver(database, captured_cycles))
+
+    class CrashBeforeStageAdvance:
+        def __init__(self, database):
+            self.database = database
+
+        def observe(self, cycle_id, observation, *, evidence_ids=()):
+            raise KeyboardInterrupt("simulated crash before OBSERVE advance")
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(observation_module, "CompeteLoop", CrashBeforeStageAdvance)
+        with pytest.raises(KeyboardInterrupt, match="before OBSERVE advance"):
+            first_runner.run(mission.id)
+
+    interrupted_cycle = database.list_competition_cycles(mission.id)[0]
+    persisted_observation = database.list_competition_observations(mission.id)[0]
+    assert interrupted_cycle.stage.value == "OBSERVE"
+    assert persisted_observation.evidence_ids
+    assert captured_cycles == [interrupted_cycle.id]
+
+    restarted_database = Database(database_path)
+    restarted = _runner(
+        restarted_database,
+        CountingObserver(restarted_database, captured_cycles),
+    ).run(mission.id)
+
+    assert restarted is not None
+    recovered_cycle = restarted_database.get_competition_cycle(interrupted_cycle.id)
+    assert recovered_cycle.completed_at is not None
+    assert recovered_cycle.stage.value == "ADAPT"
+    assert captured_cycles.count(interrupted_cycle.id) == 1
+    recovered_observations = [
+        item
+        for item in restarted_database.list_competition_observations(mission.id)
+        if item.cycle_id == interrupted_cycle.id
+    ]
+    assert [item.id for item in recovered_observations] == [persisted_observation.id]
+    captured_events = [
+        event
+        for event in restarted_database.events(mission.id)
+        if event["event_type"] == "COMPETITION_OBSERVATION_CAPTURED"
+        and event["payload"].get("observation_id") == str(persisted_observation.id)
+    ]
+    assert len(captured_events) == 1
 
 
 def test_iteration_runner_expires_mission_from_observed_deadline(tmp_path):

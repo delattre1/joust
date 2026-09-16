@@ -45,8 +45,8 @@ expired, user-stopped, or irrecoverably blocked.
 | Metrics drive strategy | `CompetitionMetricsAnalyzer` computes temporal rank/users/install/token deltas and persists a deterministic bottleneck/next action; eligibility takes precedence while Joust is unverified | PRESENT (deterministic example and live mission decision) |
 | EntrantProfile | Persisted reusable profile with GitHub/Discord/platform identities, mission attachment, export, and CLI entrypoint | PRESENT |
 | ProjectTarget fields | Owner/name, dev/lint commands, deployment requirement/target, and base/final commit SHA extend the existing mandatory target boundary | PRESENT |
-| GitHub runtime | Runtime authentication persists in the Hermes volume; preflight observes the authenticated account, canonical repository, push permission, default-branch protection, open PRs, checks, and Actions state | PRESENT (read-only live evidence; mutation unrehearsed) |
-| External-action verification | One durable proposal/approval/idempotent-execution/remote-observation/evidence contract, kind-agnostic by construction. Executors and remote observers exist for all seven kinds; live repository creation, branch push, and PR creation were independently observed | PRESENT (GitHub live; Agent Index deterministic pending an authorized live rehearsal) |
+| GitHub runtime | Runtime authentication persists in the Hermes volume; preflight observes the authenticated account, canonical repository, push permission, default-branch protection, open PRs, checks, and Actions state | PRESENT (live repository creation, branch push, and PR verified below) |
+| External-action verification | One durable proposal/approval/idempotent-execution/remote-observation/evidence contract, kind-agnostic by construction. Executors and remote observers exist for all seven kinds; GitHub writes and Agent Index public metadata writes were independently verified | PRESENT (live; Plow verification remains an external handoff) |
 | Third-party-pending actions | `AWAITING_EXTERNAL` separates "Joust delivered its side and the other party has not acted" from success and from failure; re-running such an action re-observes the remote instead of re-delivering the handoff | PRESENT |
 | Agent Index eligibility | `license_is_mit and registered and reporting_healthy and verified` observed from the repository's own LICENSE and the live public record; unobserved inputs stay `None` rather than becoming `False` | PRESENT (live: verification is the only open gate) |
 | Hermes model-backed coding | `HermesImplementer` completed a live model-backed action, created three project files, passed 16 generated tests, committed, and reproduced from a clean clone | PRESENT (live local E2E) |
@@ -55,25 +55,17 @@ expired, user-stopped, or irrecoverably blocked.
 | Verification-only build | A local action may pass configured checks and clean-clone reproduction without manufacturing a diff; this is explicit in `ChangeSet.verification_only` | PRESENT (contract; live predecessor exposed the bug) |
 | Product and external identity | Product/display/brand are Joust and CTA is `Joust it.`; durable installation state rejects changes to the bound external `AGENT_ID`, which remains `galahad-hackathon` | PRESENT (external id intentionally stable) |
 
-## Plan ordered by dependency and risk
+## Current gaps
 
-1. Bind the immutable external identity and add observation fingerprints,
-   leases, retry/backoff, and last-success state before any scheduler is enabled.
-2. Add a deterministic competition-intelligence reducer: convert newly fetched
-   evidence into proposed versioned rule/score/submission changes, require an
-   authority/conflict decision, and update the active `CompetitionSpec`.
-3. Add structured Agent Index leaderboard/usage, submission-state, and
-   deployment-health adapters. Live HTML containing `Loading…` is evidence of
-   an unavailable signal, not a score.
-4. Authenticate and prove GitHub remote observation, then add executors for
-   tests without implementation, submission preparation,
-   preview deployment, and approval-bound GitHub publication. Research and
-   build executors are now real; `CUSTOM` remains an explicit no-op only.
-5. Run one authenticated GitHub branch/PR rehearsal after explicit approval,
-   then exercise deployment observation and a second build caused by measured
-   feedback.
-6. Enable Hermes cron only after the monitored runner and external observation
-   path pass; keep the registered `AGENT_ID=galahad-hackathon` stable.
+- Verify a newly created mission from a real competition URL through its
+  persisted rule and target setup; this remains an acceptance gate.
+- Complete live deployment and submission observation, then feed authoritative
+  results into a subsequent persisted cycle.
+- Configure periodic Hermes cron only after verifying the pinned base runtime
+  and persisted job configuration together. `compete-run` is currently one
+  guarded invocation, not an automatic schedule.
+- Keep `AGENT_ID=galahad-hackathon` stable. Plow still owns the final Verified
+  decision; Joust can deliver and observe the external handoff only.
 
 ## Findings from the live persistent mission
 
@@ -103,13 +95,13 @@ not a fixture-only controller:
   that this mission still conflates the Joust distribution repository with its
   competition entry. No remote mutation was attempted.
 
-The largest remaining closure gap is now a live rehearsal of the Agent Index
-actions, followed by safe Hermes cron. Every declared kind has an executor and
-a remote observer; what is untested is the authorized live path, not the
-contract. GitHub
-repository creation, push, and PR now require a scoped policy decision, execute
-with a stable idempotency key, observe the actual remote result, and persist
-evidence against an independent competition-entry target.
+At this point in the original rehearsal, the largest closure gap was a live
+rehearsal of Agent Index actions followed by safe Hermes cron. Every declared
+kind has an executor and a remote observer; what remained untested was the
+authorized live path, not the contract. GitHub repository creation, push, and
+PR require a scoped policy decision, execute with a stable idempotency key,
+observe the actual remote result, and persist evidence against an independent
+competition-entry target.
 
 That GitHub portion is now closed for mission
 `5a26f83b-61cd-426c-ba02-878dc8c9cc38`: Joust created the independent public
@@ -149,25 +141,26 @@ competition URL
 ```
 
 The repository proves the middle local segment, a live multi-cycle mission with
-restart/fallback behavior, structured leaderboard deltas, and authenticated
-read-only GitHub observation. It does not yet prove GitHub mutation, live
-deployment observation, or a Hermes-cron schedule guarded by leases and
-observation fingerprints.
+restart/fallback behavior, structured leaderboard deltas, authenticated
+GitHub observation, and verified GitHub/Agent Index writes recorded above. It
+does not yet prove live deployment observation or an automatic Hermes-cron
+schedule guarded by leases and observation fingerprints.
 
 ## Acceptance gates for the next architecture slice
 
-1. A clean mission created from a real competition URL records authoritative
-   rules, uncertainties, deadline, scoring model, entrant, and target repository.
-2. A real Hermes session changes that target repository; Joust records the base
-   SHA, final SHA, diff, commands, repair attempts, and authoritative evidence.
-3. With explicit approval, the mission pushes a branch and opens a PR in the
-   target repository; retrying the same action is idempotent.
-4. The observation plane detects the resulting GitHub checks and deployment
-   state and feeds them into the next persisted competition cycle.
-5. A measured result can cause a new strategy/build cycle after submission;
-   only a terminal `MissionStatus` stops the loop.
-6. A clean export allows an independent reviewer to reproduce every claim at
-   the recorded final commit.
+1. **Open:** a clean mission created from a real competition URL records
+   authoritative rules, uncertainties, deadline, scoring model, entrant, and
+   target repository.
+2. **Verified in the recorded live mission:** Hermes changed the target and
+   Joust recorded the base/final SHA, commands, checks, and clean-clone evidence.
+3. **Verified in the recorded live mission:** with policy approval, the mission
+   created a separate repository, pushed a branch, and opened a PR idempotently.
+4. **Partial:** observe resulting GitHub checks and deployment state and feed
+   authoritative changes into the next persisted cycle.
+5. **Partial:** the compete loop advances and creates later cycles; prove
+   scheduled recurrence only after Hermes cron is configured and verified.
+6. **Open:** reproduce every claim from a clean export at the recorded final
+   commit.
 
 ## Non-negotiable invariants
 
@@ -178,3 +171,28 @@ observation fingerprints.
   consequences remain approval-bound unless a scoped preauthorization exists.
 - Every public claim names authoritative evidence at the final target commit.
 - No synthetic fixture may be presented as proof of a live Hermes/GitHub run.
+
+## Runtime routing update — 2026-09-16
+
+- `mission joust-it` is the canonical model-backed intake. The legacy CLI name
+  `mission create` is an alias to the same handler; both stop visibly when no
+  model is available. The deterministic `run_vertical_slice` and
+  `complete_v0` functions remain fixture helpers and are no longer reachable
+  from production CLI intake or resume.
+- `mission compete-run` now calls the lease/fingerprint/backoff monitor and
+  injects the structured Agent Index metrics reader when `AGENT_ID` is set.
+  This is one monitored invocation; Hermes cron is still not configured by
+  this repository and must not be described as an active automatic schedule.
+- Terminal action results are reconciled into a cycle left at `EXECUTE` after
+  restart, so the action is not repeated and the cycle can proceed to `VERIFY`.
+  Action starts are atomically claimed per cycle. A recent `RUNNING` action is
+  treated as in-flight while its owning process exists; legacy records without
+  process ownership use a two-hour recovery horizon.
+- Planner calls use `InvocationRecorder` with prompt/context hashes and typed
+  status. Raw prompt/output content is not persisted. A typed model timeout
+  reaches the documented deterministic fallback; other provider failures stay
+  explicit.
+- `PlowLatchAdapter` remains an unconnected protocol adapter. Interactive
+  browser/app control is supplied by the Hermes/Plow runtime when configured;
+  Joust has no Python backend for it and does not implement a second Latch
+  protocol.

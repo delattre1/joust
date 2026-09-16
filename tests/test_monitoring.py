@@ -1,4 +1,6 @@
 from datetime import UTC, datetime, timedelta
+from threading import Event, Thread
+from time import sleep
 
 from hackathon_competitor.compete_loop import CompeteLoop
 from hackathon_competitor.competition_actions import CompetitionActionDispatcher
@@ -12,6 +14,7 @@ from hackathon_competitor.models import (
     Measurement,
     Mission,
     MonitorOutcome,
+    utcnow,
 )
 from hackathon_competitor.monitoring import BackoffPolicy, MonitoredCompetitionRunner
 from hackathon_competitor.observation import CompetitionObserver
@@ -105,6 +108,13 @@ def test_monitor_lease_allows_only_one_live_holder(tmp_path):
     assert not database.acquire_monitor_lease(
         lease_key=key,
         mission_id=mission.id,
+        holder="worker-1",
+        acquired_at=now + timedelta(minutes=1),
+        expires_at=now + timedelta(minutes=6),
+    )
+    assert not database.acquire_monitor_lease(
+        lease_key=key,
+        mission_id=mission.id,
         holder="worker-2",
         acquired_at=now + timedelta(minutes=1),
         expires_at=now + timedelta(minutes=6),
@@ -116,6 +126,60 @@ def test_monitor_lease_allows_only_one_live_holder(tmp_path):
         acquired_at=now + timedelta(minutes=6),
         expires_at=now + timedelta(minutes=11),
     )
+
+
+def test_monitor_renews_lease_during_a_long_iteration(tmp_path):
+    database = Database(tmp_path / "state.db")
+    database.migrate()
+    mission = Mission(title="Joust", objective="compete", workspace_path=str(tmp_path))
+    database.save_mission(mission)
+    started = Event()
+    release = Event()
+
+    class SlowRunner:
+        observer = CompetitionObserver(database)
+
+        def run(self, mission_id):
+            started.set()
+            assert release.wait(timeout=5)
+
+    monitor = MonitoredCompetitionRunner(
+        database,
+        SlowRunner(),
+        lease_duration=timedelta(milliseconds=300),
+        random_unit=lambda: 0.5,
+    )
+    results = []
+    worker = Thread(
+        target=lambda: results.append(
+            monitor.run(mission.id, holder="same-process", now=utcnow())
+        )
+    )
+    worker.start()
+    assert started.wait(timeout=5)
+    lease_key = f"mission:{mission.id}:competition_state"
+    initial_expiry = utcnow() + timedelta(milliseconds=300)
+    for _ in range(500):
+        with database.connect() as connection:
+            row = connection.execute(
+                "SELECT expires_at FROM monitor_leases WHERE lease_key = ?",
+                (lease_key,),
+            ).fetchone()
+        if row and datetime.fromisoformat(row["expires_at"]) > initial_expiry:
+            break
+        sleep(0.01)
+    else:
+        release.set()
+        worker.join(timeout=5)
+        raise AssertionError("monitor lease heartbeat did not extend the original expiry")
+
+    competing = monitor.run(mission.id, holder="same-process", now=utcnow())
+    release.set()
+    worker.join(timeout=5)
+
+    assert not worker.is_alive()
+    assert competing.outcome == MonitorOutcome.LEASED_OUT
+    assert results[0].outcome == MonitorOutcome.CHANGED
 
 
 def test_backoff_policy_uses_capped_sequence_and_jitter():

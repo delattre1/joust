@@ -1,5 +1,11 @@
 # Build notes
 
+> This is a chronological implementation log. Operational statements in
+> dated entries are historical and are superseded by the current
+> [runbook](RUNBOOK.md) and [architecture delta](JOUST_ARCHITECTURE_DELTA.md).
+> In particular, earlier SMS wording records prior assumptions and does not
+> specify the current provisioned Plow Chat channel.
+
 ## 2026-09-15 — Cloud-ready installation boundaries
 
 The cloud-readiness audit checked the five installation invariants. The image

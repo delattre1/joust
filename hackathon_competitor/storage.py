@@ -14,31 +14,31 @@ from pydantic import BaseModel
 from .models import (
     ActionExecution,
     AgentIdentity,
+    AIDecision,
     Approval,
     Artifact,
     BuildRun,
     ChangeSet,
     CompetitionCycle,
-    CurrentCompetitionState,
-    DeadlineSignal,
     CompetitionMemory,
     CompetitionObservation,
     CompetitionRule,
+    CurrentCompetitionState,
+    DeadlineSignal,
     Decision,
     EntrantProfile,
     Evaluation,
     Evidence,
+    Experiment,
     ExternalActionObservation,
     Extraction,
-    Experiment,
     HackathonSpec,
     Idea,
-    AIDecision,
+    LeaderboardSignal,
+    MetricSignal,
     Mission,
     MissionState,
     ModelInvocation,
-    LeaderboardSignal,
-    MetricSignal,
     MonitorBackoffState,
     ProjectTarget,
     ProposedCommand,
@@ -472,7 +472,6 @@ class Database:
             ).fetchone()
             available = (
                 row is None
-                or row["holder"] == holder
                 or datetime.fromisoformat(row["expires_at"]) <= acquired_at
             )
             if not available:
@@ -492,6 +491,30 @@ class Database:
                 ),
             )
             return True
+
+    def renew_monitor_lease(
+        self,
+        *,
+        lease_key: str,
+        holder: str,
+        expires_at: datetime,
+    ) -> bool:
+        """Extend a lease while its unique holder token is still current.
+
+        A late heartbeat may reclaim its own expired row if no other worker
+        took it. The holder predicate makes that race atomic.
+        """
+        with self.connect() as connection:
+            cursor = connection.execute(
+                "UPDATE monitor_leases SET expires_at = ? "
+                "WHERE lease_key = ? AND holder = ?",
+                (
+                    expires_at.isoformat(),
+                    lease_key,
+                    holder,
+                ),
+            )
+            return cursor.rowcount == 1
 
     def release_monitor_lease(self, *, lease_key: str, holder: str) -> bool:
         with self.connect() as connection:
@@ -860,6 +883,31 @@ class Database:
             status=execution.status.value,
             started_at=execution.started_at.isoformat(),
         )
+
+    def start_action_execution(self, execution: ActionExecution) -> bool:
+        """Atomically claim the one action slot for a competition cycle."""
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            existing = connection.execute(
+                "SELECT 1 FROM action_executions WHERE cycle_id = ? LIMIT 1",
+                (str(execution.cycle_id),),
+            ).fetchone()
+            if existing is not None:
+                return False
+            connection.execute(
+                "INSERT INTO action_executions"
+                "(id, mission_id, cycle_id, status, started_at, payload) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    str(execution.id),
+                    str(execution.mission_id),
+                    str(execution.cycle_id),
+                    execution.status.value,
+                    execution.started_at.isoformat(),
+                    self._payload(execution),
+                ),
+            )
+            return True
 
     def list_action_executions(self, mission_id: UUID | str) -> list[ActionExecution]:
         return self._list_for_mission("action_executions", mission_id, ActionExecution)

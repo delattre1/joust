@@ -8,6 +8,13 @@
 **Deployment model:** Agent variant image built on top of `plow-hermes-agent`  
 **Competition objective:** deliver a genuinely useful agent that helps people compete in hackathons end-to-end, while satisfying the AI Worth Using / Hermes Hackathon publishing, verification, Agent Index reporting, licensing, and runtime requirements.
 
+> **Status:** This is the initial V1 draft. Later implementation decisions and
+> current runtime evidence are recorded in `docs/DECISIONS.md` and
+> `docs/JOUST_ARCHITECTURE_DELTA.md`; those documents take precedence where
+> they describe newer behavior. Do not treat the planned DAG, capability
+> registry, browser adapter, or scheduled loop below as active runtime wiring
+> unless the current evidence map says so.
+
 ---
 
 # 0. Executive summary
@@ -123,7 +130,9 @@ Treat the following as hard integration requirements unless the official rules c
 
 1. The agent must be published to the AI Worth Using Agent Index.
 2. The agent must become Verified to be eligible to win.
-3. The current Agent Index page states that eligible ranked agents must be MIT licensed.
+3. The event guidance recorded for this project requires an MIT license. Do
+   not attribute this requirement to the live Agent Index page unless that
+   page confirms it; recheck the current event rules before each release.
 4. The agent must report usage through the AI Worth Using Agent Index client.
 5. The official Plow path uses `plow-hermes-agent` as the base runtime image.
 6. The agent-specific repository should contain the agent persona, skills, defaults, tests, and variant-specific background services — not forks of base runtime behavior.

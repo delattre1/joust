@@ -79,7 +79,7 @@
   state.
   Verify: Denied, approved, interrupted, retry, and remote-mismatch tests.
 
-- [ ] **8. Rehearse push, PR, deploy, and submission state**
+- [~] **8. Verify external action state end to end**
   Spec ref: `Joust SDD > 2. Product Promise; 8. Autonomy Policy`
   What to build: With explicit approval, execute a mission-branch rehearsal and
   observe its actual GitHub/deployment/submission state.
@@ -91,15 +91,14 @@
   - [x] Independent public target `baskpascal/joust-entry` created and observed.
   - [x] Mission branch pushed; remote SHA equals the validated local SHA.
   - [x] PR #1 observed open from the mission branch to `main`.
-  - [x] Agent Index metadata update has an executor and a remote observer that
-    re-reads the public record and fails when the Index drops a field.
-  - [x] Verification request has an executor, an eligibility precondition, and
-    an observer that reads `blessed_at`.
-  - [x] Hosted deployment is an approval-bound handoff observed through
-    `deployable_at`; it rests in `AWAITING_EXTERNAL` until Plow enables it.
-  - [x] Final submission publishes the public record and verifies what the
-    Index actually stored, recording that published is not Verified.
-  - [ ] Both remain deterministic until a live rehearsal is authorized.
+  - [x] Agent Index metadata was written through the pinned client and
+    re-read from the public record.
+  - [x] Verification enforces its eligibility precondition and observes
+    `blessed_at`; Plow still owns the final Verified decision.
+  - [x] Hosted deployment and final submission have approval-bound action
+    contracts and remote observers.
+  - [ ] Live deployment activation and final submission remain unverified;
+    no successful result is claimed for either.
 
 - [~] **9. Enable Hermes cron**
   Spec ref: `Joust SDD > 4. Compete Loop; 6. Hermes and Plow`
@@ -109,11 +108,12 @@
   submission.
   Verify: Supervised container run across multiple scheduled intervals.
 
-  The narrow `verification_status` monitor is built and safe to schedule at a
-  30-minute interval once the handoff is delivered; an external error enters the
-  existing backoff rather than hammering the Index. The full competitive
-  monitoring set stays off until `eligible_to_win` is true, because only then
-  can an observation produce a competitive decision.
+  `mission compete-run` is one lease-guarded invocation and renews its lease
+  during long actions. It is safe for periodic invocation, but this repository
+  has no verified active Hermes cron configuration. The narrow
+  `verification_status` monitor uses backoff after an external error. Metrics
+  may be ingested before Verified; rank-based competitive decisions remain
+  gated until `eligible_to_win` is true.
 
 - [ ] **10. Close and publish the MVP evidence**
   Spec ref: `Joust SDD > 1. Product Definition; 2. Product Promise`
@@ -130,7 +130,7 @@
 - [x] Raw evidence becomes versioned rules/signals.
 - [x] Public competition metrics are ingested.
 - [x] Metrics change mission decisions.
-- [x] Monitor primitives provide fingerprint, lease, backoff, and last-success state.
+- [x] Monitor primitives provide fingerprints, renewing leases, backoff, and last-success state.
 - [ ] Hermes cron runs safely.
 - [x] GitHub runtime is authenticated.
 - [x] Remote checks are observed (the current result is an evidence-backed empty set).
@@ -138,10 +138,10 @@
   counts as covered only once an executor and a remote observer exist for it,
   which is now true of all seven: `REPOSITORY_CREATE`, `PUSH`, `PULL_REQUEST`,
   `AGENT_INDEX_UPDATE`, `VERIFICATION_REQUEST`, `DEPLOY`, `FINAL_SUBMISSION`.
-- [ ] Actual external results are verified end to end. GitHub repository
-  creation, push, and PR are observed live. Agent Index update, verification,
-  hosting, and submission are covered deterministically and await an authorized
-  live rehearsal.
+- [~] Actual external results are partially verified. GitHub repository
+  creation, push, and PR plus Agent Index metadata writes are observed live.
+  Verified status remains Plow-owned; live deployment activation and final
+  submission remain open.
 - [x] Product identity is Joust in local/runtime contracts.
 - [x] `AGENT_ID` identity remains stable in durable installation state.
 
@@ -200,9 +200,10 @@ repository, the install path is part of the gate.
   actually observable rather than inferred from a local date rollover.
 - [ ] Verified is observed and `eligible_to_win` becomes true.
 
-Only once `eligible_to_win` is true does the full competitive monitoring set
-earn its tokens. A narrow `verification_status` monitor is useful before that,
-as soon as the request rests in `AWAITING_EXTERNAL`.
+Rank-based competitive decisions become actionable once `eligible_to_win` is
+true. Before then, `compete-run` can still ingest observed metrics while
+preserving the eligibility gate; a narrow `verification_status` monitor can
+observe whether Plow has verified the agent.
 
 ## Observed competitive state
 

@@ -35,11 +35,10 @@ confirmation before claiming a final ranking or deadline.
 
 ## Operational channel
 
-For this installation, the live Plow Chat product surface is the Plow phone
-line provided by `hermes-plow-plugin`, reached through SMS (with iMessage used
-for activation where supported). A browser ChatGPT or custom-GPT conversation
-is a separate interface and is not evidence that the SMS agent executed an
-action. Real acceptance tests must use the live SMS line.
+Use the Plow Chat phone line provisioned for this installation. Its provider
+and channel depend on the line configuration. A browser ChatGPT or custom-GPT
+conversation is a separate interface and is not evidence that Plow Chat
+executed an action. Real acceptance tests must use the provisioned line.
 
 Product interpretation: maximize genuine first-use and repeat value so users
 choose to install and run useful, deep missions. Never fabricate installs,

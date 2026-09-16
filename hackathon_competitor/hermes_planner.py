@@ -8,7 +8,7 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
-from .ai import ModelUnavailable
+from .ai import InvocationRecorder, ModelUnavailable
 from .competition_actions import ActionExecutor
 from .models import (
     ActionCandidate,
@@ -322,8 +322,19 @@ class HermesCompetitionPlanner:
             f"context={json.dumps(context, sort_keys=True)}"
         )
         try:
-            response = self.reasoner.complete(prompt)
+            response, _invocation = InvocationRecorder(self.database, mission.id).run(
+                self.reasoner,
+                purpose="competition_assessment",
+                prompt=prompt,
+                context=context,
+            )
+        except ModelUnavailable as exc:
+            if exc.code != "MODEL_TIMEOUT":
+                raise
+            return self._timeout_fallback(mission, observation, target_payload, exc)
         except TimeoutError as exc:
+            # Support simple injected reasoners too, while HermesOneShotReasoner
+            # reports the same failure as ModelUnavailable("MODEL_TIMEOUT", ...).
             return self._timeout_fallback(mission, observation, target_payload, exc)
         try:
             plan = AssessmentPlan.model_validate(_json_object(response))
@@ -362,7 +373,7 @@ class HermesCompetitionPlanner:
         mission: Mission,
         observation: CompetitionObservation,
         target_payload: dict | None,
-        error: TimeoutError,
+        error: Exception,
     ) -> AssessmentPlan:
         self.database.append_event(
             mission.id,

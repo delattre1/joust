@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 from collections.abc import Mapping
+from datetime import timedelta
 from pathlib import Path
 from typing import Protocol
 from urllib.parse import urlparse
@@ -23,6 +26,65 @@ from .models import (
     utcnow,
 )
 from .storage import Database
+
+RUNNING_ACTION_STALE_AFTER = timedelta(hours=2)
+
+
+def _process_instance_id(pid: int) -> str | None:
+    """Return a PID-reuse-resistant identity where Linux exposes procfs."""
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="utf-8").strip()
+        namespace = os.readlink(f"/proc/{pid}/ns/pid")
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+    except OSError:
+        return None
+    fields = stat[stat.rfind(")") + 2 :].split()
+    if len(fields) <= 19:
+        return None
+    return f"{boot_id}|{namespace}|{fields[19]}"
+
+
+def _execution_owner_is_alive(execution: ActionExecution) -> bool | None:
+    if execution.owner_pid is None:
+        return None
+    if (
+        os.name != "posix"
+        or not sys.platform.startswith("linux")
+        or execution.owner_process_instance is None
+    ):
+        # Windows interprets signal 0 as process termination, so do not use
+        # os.kill there. Without a platform identity, the caller uses the
+        # bounded recovery horizon for this unknown state.
+        return None
+    identity_parts = execution.owner_process_instance.split("|", maxsplit=2)
+    if len(identity_parts) != 3:
+        return None
+    owner_boot_id, owner_namespace, _owner_start_ticks = identity_parts
+    try:
+        current_boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(
+            encoding="utf-8"
+        ).strip()
+        current_namespace = os.readlink("/proc/self/ns/pid")
+    except OSError:
+        return None
+    if current_boot_id != owner_boot_id:
+        return False
+    if current_namespace != owner_namespace:
+        return None
+    try:
+        os.kill(execution.owner_pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    current_instance = _process_instance_id(execution.owner_pid)
+    if current_instance is None:
+        return None
+    return current_instance == execution.owner_process_instance
 
 
 class ActionExecutor(Protocol):
@@ -197,7 +259,15 @@ class CompetitionActionDispatcher:
         if existing:
             previous = existing[-1]
             if previous.status != ActionExecutionStatus.RUNNING:
+                if cycle.stage == CompeteStage.EXECUTE:
+                    self._reconcile_terminal_execution(cycle.id, previous)
                 return previous
+            owner_alive = _execution_owner_is_alive(previous)
+            owner_is_recent = utcnow() - previous.started_at < RUNNING_ACTION_STALE_AFTER
+            if owner_alive is True or (owner_alive is None and owner_is_recent):
+                raise CompeteLoopError(
+                    "competition action is still running; refusing to interrupt or duplicate it"
+                )
             previous.status = ActionExecutionStatus.FAILED
             previous.error = "action process ended before a durable result was recorded"
             previous.finished_at = utcnow()
@@ -230,8 +300,13 @@ class CompetitionActionDispatcher:
             mission_id=mission.id,
             cycle_id=cycle.id,
             action=action,
+            owner_pid=os.getpid(),
+            owner_process_instance=_process_instance_id(os.getpid()),
         )
-        self.database.save_action_execution(execution)
+        if not self.database.start_action_execution(execution):
+            raise CompeteLoopError(
+                "competition action was claimed by another worker; retry this cycle later"
+            )
         self.database.append_event(
             mission.id,
             "COMPETITION_ACTION_STARTED",
@@ -302,3 +377,48 @@ class CompetitionActionDispatcher:
             },
         )
         return execution
+
+    def _reconcile_terminal_execution(
+        self,
+        cycle_id: UUID,
+        execution: ActionExecution,
+    ) -> None:
+        """Advance a cycle whose action result was saved before a process exit."""
+        if execution.status == ActionExecutionStatus.SUCCEEDED:
+            if execution.result is None:
+                raise CompeteLoopError(
+                    "cannot reconcile successful action execution without a durable result"
+                )
+            result = execution.result.summary
+            succeeded = True
+        else:
+            error = execution.error or "action failed without a recorded error"
+            result = f"{execution.action.name} failed: {error}"
+            succeeded = False
+
+        CompeteLoop(self.database).record_execution(
+            cycle_id,
+            result=result,
+            succeeded=succeeded,
+        )
+        if succeeded:
+            assert execution.result is not None
+            self.database.append_event(
+                execution.mission_id,
+                "COMPETITION_ACTION_SUCCEEDED",
+                {
+                    "execution_id": str(execution.id),
+                    "evidence_ids": [str(item) for item in execution.result.evidence_ids],
+                    "recovered": True,
+                },
+            )
+        else:
+            self.database.append_event(
+                execution.mission_id,
+                "COMPETITION_ACTION_FAILED",
+                {
+                    "execution_id": str(execution.id),
+                    "error": execution.error or "action failed without a recorded error",
+                    "recovered": True,
+                },
+            )

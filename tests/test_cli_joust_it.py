@@ -83,6 +83,42 @@ def test_cli_create_defaults_to_tenant_workspace(monkeypatch):
     )
 
     assert parsed.workspace is None
+    assert parsed.mission_command == "create"
+
+
+def test_mission_create_alias_uses_the_model_backed_intake(tmp_path, monkeypatch):
+    captured: dict[str, object] = {}
+    _install_fake_joust_it(monkeypatch, captured)
+    workspace = tmp_path / "workspace"
+
+    exit_code = cli.main(
+        [
+            "mission",
+            "create",
+            "--url",
+            "https://example.test/rules",
+            "--no-model",
+            "--workspace",
+            str(workspace),
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured["url"] == "https://example.test/rules"
+    assert captured["workspace_path"] == str(workspace)
+
+
+def test_joust_it_and_create_accept_the_same_intake_options():
+    create = cli.build_parser().parse_args(
+        ["mission", "create", "--url", "https://example.test/rules", "--no-model"]
+    )
+    joust_it = cli.build_parser().parse_args(
+        ["mission", "joust-it", "--url", "https://example.test/rules", "--no-model"]
+    )
+
+    assert create.no_model and joust_it.no_model
+    assert create.projects_root == joust_it.projects_root
+    assert create.existing_project_path == joust_it.existing_project_path
 
 
 def test_installation_home_is_unique_for_explicit_tenant_homes(tmp_path):

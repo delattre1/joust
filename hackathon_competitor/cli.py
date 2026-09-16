@@ -31,6 +31,7 @@ from .competition_actions import (
     RealBuildActionExecutor,
     RealResearchActionExecutor,
 )
+from .competition_intelligence import CompetitionIntelligence
 from .competition_runner import CompetitionIterationRunner
 from .credentials import DEFAULT_RELATIVE_PATH, resolve_credential_path
 from .distribution import build_public_bundle
@@ -43,24 +44,23 @@ from .hermes_planner import (
     ReadinessMeasurer,
 )
 from .identity import identity_from_environment
-from .metrics import MetricsUnavailable, PlowMetricsReader
+from .metrics import MetricsUnavailable, PlowMetricsIngestor, PlowMetricsReader
 from .models import (
     CompetitionActionType,
     EntrantProfile,
     MissionState,
+    MonitorOutcome,
     ProjectMode,
     ProjectTarget,
 )
+from .monitoring import MonitoredCompetitionRunner
 from .observation import CompetitionObserver
 from .orchestrator import MissionOrchestrator
 from .pipeline import (
     build_project_for_mission,
-    complete_v0,
     mission_status,
     prepare_project_submission,
-    run_vertical_slice,
 )
-from .registry import default_registry
 from .rule_updates import refresh_official_rules
 from .storage import MIGRATIONS, Database
 
@@ -85,7 +85,6 @@ def runtime(home: Path | None = None) -> MissionOrchestrator:
     return MissionOrchestrator(
         database,
         root / "missions",
-        capability_registry=default_registry(),
     )
 
 
@@ -301,24 +300,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     mission = commands.add_parser("mission")
     mission_commands = mission.add_subparsers(dest="mission_command", required=True)
-    create = mission_commands.add_parser("create")
-    create.add_argument("--url", required=True)
-    create.add_argument(
+    for name in ("show", "resume", "pause", "cancel", "tasks", "github-status"):
+        sub = mission_commands.add_parser(name)
+        sub.add_argument("mission_id", type=UUID)
+    joust = mission_commands.add_parser("joust-it", aliases=["create"])
+    joust.add_argument("--url", required=True)
+    joust.add_argument(
         "--workspace",
         default=None,
         help="optional workspace override; defaults to the persistent tenant home",
     )
-    for name in ("show", "resume", "pause", "cancel", "tasks", "github-status"):
-        sub = mission_commands.add_parser(name)
-        sub.add_argument("mission_id", type=UUID)
-    joust = mission_commands.add_parser("joust-it")
-    joust.add_argument("--url", required=True)
     joust.add_argument("--projects-root")
     joust.add_argument(
         "--existing-project-path",
         help="a real local repository this mission must evolve rather than replace",
     )
+    joust.add_argument(
+        "--claude",
+        action="store_true",
+        help="use the locally authenticated Claude Code CLI instead of Hermes",
+    )
     joust.add_argument("--claude-model", default="default")
+    joust.add_argument("--hermes-model")
+    joust.add_argument("--hermes-reasoning")
     joust.add_argument(
         "--no-model",
         action="store_true",
@@ -443,10 +447,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "db":
         print(json.dumps({"migration_version": app.database.migration_version()}))
         return 0
-    if args.mission_command == "create":
-        mission = run_vertical_slice(app, args.url, workspace_path=args.workspace)
-        print(json.dumps(mission_status(app, mission), indent=2))
-        return 0
     if args.mission_command == "attach-project":
         # Validate the names at attachment time so a credential-shaped name
         # cannot be persisted as a future build permission.
@@ -474,17 +474,26 @@ def main(argv: list[str] | None = None) -> int:
         app.attach_project_target(target)
         print(json.dumps(target.model_dump(mode="json"), indent=2))
         return 0
-    if args.mission_command == "joust-it":
+    if args.mission_command in {"joust-it", "create"}:
         reasoner = (
             UnavailableReasoner()
             if args.no_model
-            else ClaudeCliReasoner(model=args.claude_model, workdir=Path.cwd())
+            else (
+                ClaudeCliReasoner(model=args.claude_model, workdir=Path.cwd())
+                if args.claude
+                else HermesOneShotReasoner(
+                    args.workspace or Path.cwd(),
+                    model=args.hermes_model,
+                    reasoning=args.hermes_reasoning,
+                )
+            )
         )
         try:
             mission, selected, decision, target = joust_it(
                 app,
                 args.url,
                 reasoner,
+                workspace_path=args.workspace,
                 projects_root=args.projects_root,
                 existing_project_path=args.existing_project_path,
             )
@@ -708,9 +717,16 @@ def main(argv: list[str] | None = None) -> int:
                 ),
                 github=github,
             )
-        next_cycle = CompetitionIterationRunner(
+        metrics_ingestor = None
+        agent_id = os.environ.get("AGENT_ID")
+        if agent_id:
+            metrics_ingestor = PlowMetricsIngestor(
+                CompetitionIntelligence(app.database),
+                PlowMetricsReader(agent_id),
+            )
+        iteration_runner = CompetitionIterationRunner(
             app.database,
-            CompetitionObserver(app.database, github=github),
+            CompetitionObserver(app.database, github=github, metrics=metrics_ingestor),
             HermesCompetitionPlanner(
                 app.database,
                 reasoner,
@@ -719,19 +735,34 @@ def main(argv: list[str] | None = None) -> int:
             ),
             CompetitionActionDispatcher(app.database, executors),
             ReadinessMeasurer(),
-        ).run(mission.id)
+        )
+        monitor_result = MonitoredCompetitionRunner(
+            app.database,
+            iteration_runner,
+        ).run(
+            mission.id,
+            holder=f"joust-cli:{os.getpid()}",
+        )
+        cycles = app.database.list_competition_cycles(mission.id)
+        next_cycle = cycles[-1] if cycles and cycles[-1].completed_at is None else None
         print(
             json.dumps(
                 {
                     "mission": str(mission.id),
                     "status": app.database.get_mission(mission.id).status.value,
+                    "monitor_outcome": monitor_result.outcome.value,
+                    "next_attempt_at": (
+                        monitor_result.next_attempt_at.isoformat()
+                        if monitor_result.next_attempt_at
+                        else None
+                    ),
                     "next_cycle": str(next_cycle.id) if next_cycle else None,
                     "next_stage": next_cycle.stage.value if next_cycle else None,
                 },
                 indent=2,
             )
         )
-        return 0
+        return 1 if monitor_result.outcome == MonitorOutcome.FAILED else 0
     if args.mission_command == "github-status":
         try:
             target = app.database.get_project_target_for_mission(args.mission_id)
@@ -764,10 +795,7 @@ def main(argv: list[str] | None = None) -> int:
         }, indent=2))
         return 0
     if args.mission_command == "resume":
-        resumed = app.resume_mission(args.mission_id)
-        mission = (
-            complete_v0(app, resumed.id) if resumed.state == MissionState.PLANNING else resumed
-        )
+        mission = app.resume_mission(args.mission_id)
     elif args.mission_command == "refresh-rules":
         spec = refresh_official_rules(app, args.mission_id, args.url)
         mission = app.database.get_mission(args.mission_id)

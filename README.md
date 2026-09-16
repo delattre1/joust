@@ -52,8 +52,9 @@ GitHub session; a new home starts disconnected from GitHub.
 
 ## First mission
 
-In the operational Plow Chat phone line (SMS; iMessage may be used for line
-activation), send the competition and three words:
+In the Plow Chat phone line provisioned for this installation, send the
+competition and three words. The channel depends on the line's provider
+configuration:
 
 ```text
 https://some-hackathon.devpost.com/rules
@@ -81,13 +82,19 @@ python -m hackathon_competitor.cli mission joust-it --url <competition-url>
    its own tests and its own install path. Not a folder inside Joust.
 5. **A coding model implements it,** and when a test fails, diagnoses and
    repairs it.
-6. **It keeps going after the first build** — watching the competition, the
-   deadline and its own project, and changing course when they change.
+6. **Each monitored run can change course** — `mission compete-run` observes
+   the competition, deadline and project, then advances one durable cycle.
+   Automatic recurrence requires an external Hermes cron configuration; this
+   repository does not enable that schedule.
 
-Every model call is stored: which provider, which model, what it was asked, what
-it chose, and what it chose over. A change the model made carries the model's
-name. **With no model configured, a mission stops at `AI_STRATEGY_UNAVAILABLE`
-and builds nothing** — there is no deterministic impersonation underneath.
+Strategy and planning model calls record the provider, model, purpose,
+prompt/context hashes, and success or failure status. Decisions separately
+record the selected option, alternatives, rationale, and evidence; those
+records do not keep the raw planning prompts or responses. Coding-agent
+handoffs and build logs follow their own evidence path. A change the model made
+carries the model's name. **With no model configured, a mission stops at
+`AI_STRATEGY_UNAVAILABLE` and builds nothing** — there is no deterministic
+impersonation underneath.
 
 <p align="center">
   <img src="docs/brand/joust-duel.png" alt="" width="100%">
@@ -126,8 +133,9 @@ what broke.
   is disconnected, the toolset parks and the agent can report but not converse.
 - **Submission is never automatic.** Publishing, deploying, accepting terms and
   submitting each wait for an explicit approval immediately before the action.
-- **Parts of the older pipeline are deterministic fixtures.** They are labelled
-  as such in the source and no mission is routed through them.
+- **The deterministic vertical slice is a test fixture.** The CLI's `mission
+  create` alias and `mission joust-it` both use the model-backed intake; the
+  fixture pipeline is called directly by offline tests.
 
 <p align="center">
   <img src="docs/brand/joust-scenes.png" alt="" width="100%">
