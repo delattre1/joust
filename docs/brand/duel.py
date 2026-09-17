@@ -26,17 +26,27 @@ def knight(g, ox, oy, flip, plume, shield, stride=0):
 
     # Legs first, so the body masses close over their tops.
     if stride:
-        bar(44, 32, 50, 48, 4); bar(50, 48, 52, 55, 4)
-        bar(40, 32, 36, 48, 4); bar(36, 48, 34, 55, 4)
-        bar(14, 32, 10, 46, 4); bar(10, 46, 9, 55, 4)
-        bar(20, 34, 24, 48, 4); bar(24, 48, 25, 55, 4)
+        bar(44, 32, 50, 48, 4)
+        bar(50, 48, 52, 55, 4)
+        bar(40, 32, 36, 48, 4)
+        bar(36, 48, 34, 55, 4)
+        bar(14, 32, 10, 46, 4)
+        bar(10, 46, 9, 55, 4)
+        bar(20, 34, 24, 48, 4)
+        bar(24, 48, 25, 55, 4)
     else:
-        bar(44, 32, 58, 48, 4); bar(58, 48, 57, 55, 4)
-        bar(40, 32, 45, 50, 4); bar(45, 50, 44, 55, 4)
-        bar(14, 32, 3, 46, 4);  bar(3, 46, 3, 55, 4)
-        bar(20, 34, 13, 50, 4); bar(13, 50, 12, 55, 4)
+        bar(44, 32, 58, 48, 4)
+        bar(58, 48, 57, 55, 4)
+        bar(40, 32, 45, 50, 4)
+        bar(45, 50, 44, 55, 4)
+        bar(14, 32, 3, 46, 4)
+        bar(3, 46, 3, 55, 4)
+        bar(20, 34, 13, 50, 4)
+        bar(13, 50, 12, 55, 4)
     poly([(6, 24), (0, 28), (1, 42), (9, 31)])          # tail
-    ell(16, 30, 12, 10); ell(30, 31, 13, 9); ell(43, 30, 9, 9)
+    ell(16, 30, 12, 10)
+    ell(30, 31, 13, 9)
+    ell(43, 30, 9, 9)
     poly([(37, 21), (48, 9), (56, 14), (44, 30)])       # neck
     poly([(51, 5), (66, 11), (64, 19), (49, 15)])       # head
     poly([(53, 2), (57, 2), (56, 7), (52, 7)])          # ear
@@ -71,7 +81,8 @@ def scene():
                       (-6, 9, PAPER), (2, -22, GOLD), (-3, 14, PAPER)):
         g.rect(105 + dx, 49 + dy, 2, 2, c)               # splinters
     # The tilt runs between them, not across the foreground.
-    g.rect(0, 56, W, 3, INK); g.rect(0, 62, W, 3, INK)
+    g.rect(0, 56, W, 3, INK)
+    g.rect(0, 62, W, 3, INK)
     for px in range(6, W, 20):
         g.rect(px, 54, 3, 13, INK)
     return g

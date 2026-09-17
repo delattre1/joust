@@ -1,10 +1,23 @@
 import os
+import json
+import re as _re
 import sys
 
 # Runs from anywhere; writes beside itself.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-from marks import *  # noqa: E402,F403
+from marks import (  # noqa: E402
+    BARRIER,
+    CHAPLET,
+    CHARGES,
+    CROSSED,
+    HELM,
+    LANCE,
+    PENNON,
+    SHIELD,
+    svg,
+    wordmark,
+)
 
 INK, PAPER = "#100E18", "#F2E7D0"
 RED, GOLD, BLUE, GREEN = "#E23140", "#F5B325", "#2B4FD9", "#2C8C5A"
@@ -88,7 +101,7 @@ board("Card.dc.html", f"""
 import png as _png  # noqa: E402
 from raster import Grid as _Grid  # noqa: E402
 from portrait import portrait as _portrait  # noqa: E402
-from scenes2 import favour as _favour, prize as _prize, rider as _rider  # noqa: E402
+from scenes2 import favour as _favour, prize as _prize  # noqa: E402
 from duel import scene as _duel_scene  # noqa: E402
 
 IMG_TPL = """<!doctype html>
@@ -236,7 +249,6 @@ board("System.dc.html", f"""
   </div>
 </div>""")
 
-import json
 json.dump({
     "artboards": [
         {"file": "Main.dc.html", "x": 0, "y": 0, "w": 1280, "h": 420},
@@ -256,8 +268,6 @@ print("built:", sorted(f for f in __import__("os").listdir(".") if f.endswith(".
 
 
 # Standalone pages the PNG renderer captures for the README hero and card.
-import re as _re
-
 _css = _re.search(r"<style>(.*?)</style>", open("Main.dc.html", encoding="utf-8").read(), _re.S).group(1)
 _font = ('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&'
          'family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@700&display=swap">')

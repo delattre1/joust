@@ -101,10 +101,14 @@ def prize():
         art.sphere(cx, 28, 11, 10, "hair", bias=-0.06)
         art.sphere(cx, 34, 9, 10, "skin", bias=0.02)
         for ex in (-4, 4):                                     # eyes, brow, mouth
-            art.put(cx + ex, 33, HA[0]); art.put(cx + ex + 1, 33, HA[0])
+            art.put(cx + ex, 33, HA[0])
+            art.put(cx + ex + 1, 33, HA[0])
             art.put(cx + ex, 31, HA[1])
-        art.put(cx, 36, SK[4]); art.put(cx, 37, SK[1])
-        art.put(cx - 2, 40, HA[1]); art.put(cx - 1, 40, HA[1]); art.put(cx, 40, HA[1])
+        art.put(cx, 36, SK[4])
+        art.put(cx, 37, SK[1])
+        art.put(cx - 2, 40, HA[1])
+        art.put(cx - 1, 40, HA[1])
+        art.put(cx, 40, HA[1])
         if crowned:
             art.slab([(cx - 11, 17), (cx + 11, 17), (cx + 11, 23), (cx - 11, 23)], "gold",
                      t0=0.46, t1=1.0)
@@ -163,10 +167,12 @@ def rider(stride=0):
     g.sphere(62, 19, 5, 4, "bay", bias=0.06)                   # muzzle
     g.slab([(51, 2), (55, 2), (54, 9), (50, 9)], "bay", t0=0.42, t1=0.82)
     g.slab([(57, 3), (61, 4), (59, 10), (55, 9)], "bay", t0=0.38, t1=0.78)
-    g.put(57, 15, OUTLINE); g.put(58, 15, OUTLINE)             # eye
+    g.put(57, 15, OUTLINE)                                     # eye
+    g.put(58, 15, OUTLINE)
     g.put(61, 21, HA[0])                                        # nostril
     for k in range(12):                                         # mane on the crest
-        g.put(41 + k, 27 - k, HA[1]); g.put(42 + k, 27 - k, HA[0])
+        g.put(41 + k, 27 - k, HA[1])
+        g.put(42 + k, 27 - k, HA[0])
     # Rider: saddle, torso, helm, plume.
     g.slab([(24, 24), (40, 22), (41, 30), (23, 31)], "leather", t0=0.26, t1=0.70)
     g.rod(30, 24, 28, 36, 4, "steel", bias=-0.16)

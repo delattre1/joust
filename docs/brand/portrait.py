@@ -61,13 +61,15 @@ def bust(g):
     g.slab([(34, 100), (62, 100), (68, 122), (28, 122)], "red", t0=0.28, t1=0.70)
     g.slab([(44, 100), (52, 100), (54, 122), (42, 122)], "gold", t0=0.42, t1=0.88)
     for py in range(102, 122, 5):
-        g.put(45, py, G[4]); g.put(51, py + 2, G[1])
+        g.put(45, py, G[4])
+        g.put(51, py + 2, G[1])
 
     # Gorget: a clean banded collar, not a lump.
     g.slab([(27, 84), (69, 84), (72, 94), (24, 94)], "steel", t0=0.26, t1=0.78)
     g.slab([(27, 84), (69, 84), (69, 87), (27, 87)], "steel", t0=0.70, t1=1.0)
     for rx in range(30, 68, 6):
-        g.put(rx, 90, S[4]); g.put(rx + 1, 91, S[0])
+        g.put(rx, 90, S[4])
+        g.put(rx + 1, 91, S[0])
 
     # The helm: dome, face, chin, then the reinforce raised over all of it.
     g.sphere(48, 38, 22, 26, "steel")
@@ -77,14 +79,17 @@ def bust(g):
     # Brow reinforce above the sight, with its own rivet line.
     g.slab([(26, 38), (70, 38), (70, 46), (26, 46)], "steel", t0=0.52, t1=0.98)
     for rx in range(29, 70, 7):
-        g.put(rx, 41, S[4]); g.put(rx + 1, 42, S[0])
+        g.put(rx, 41, S[4])
+        g.put(rx + 1, 42, S[0])
 
     # Vertical rib: light face, dark cast edge either side, so it stands proud.
     g.slab([(44, 12), (52, 12), (52, 83), (44, 83)], "steel", t0=0.62, t1=1.0, axis="x")
     for ry in range(13, 84):
-        g.put(43, ry, S[0]); g.put(53, ry, S[1])
+        g.put(43, ry, S[0])
+        g.put(53, ry, S[1])
     for ry in range(18, 82, 9):
-        g.put(45, ry, S[4]); g.put(51, ry + 1, S[0])
+        g.put(45, ry, S[4])
+        g.put(51, ry + 1, S[0])
 
     # Ocularium: dark slot, lit lower lip, shadow above.
     for x0, x1 in ((28, 42), (54, 68)):
@@ -98,7 +103,8 @@ def bust(g):
     # Breaths, symmetric, each with a highlight under the rim.
     for cx, cy in ((33, 62), (39, 68), (33, 70), (29, 64),
                    (61, 62), (55, 68), (61, 70), (65, 64)):
-        g.put(cx, cy, OUTLINE); g.put(cx + 1, cy, OUTLINE)
+        g.put(cx, cy, OUTLINE)
+        g.put(cx + 1, cy, OUTLINE)
         g.put(cx, cy + 1, S[3])
 
     # Wear on the lit rim, and a scratch across the shadowed cheek.
