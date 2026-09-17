@@ -101,6 +101,34 @@ def test_an_env_var_wins_over_a_dotenv_value(tmp_path):
     assert str(env_path) in check.detail
 
 
+def test_a_credential_directory_is_reported_as_a_directory(tmp_path):
+    credential_dir = tmp_path / "plow-credentials"
+    credential_dir.mkdir()
+
+    check = preflight.check_credential(tmp_path, {})
+
+    assert not check.ok
+    assert check.facts["is_directory"] is True
+    assert "directory" in check.detail
+
+
+def test_compose_override_wins_over_path_override(tmp_path):
+    primary = tmp_path / "primary"
+    fallback = tmp_path / "fallback"
+    primary.write_text("token", encoding="utf-8")
+    fallback.write_text("token", encoding="utf-8")
+    primary.chmod(0o600)
+    fallback.chmod(0o600)
+
+    check = preflight.check_credential(
+        tmp_path,
+        {"PLOW_CREDENTIALS": str(primary), "PLOW_CREDENTIALS_PATH": str(fallback)},
+    )
+
+    assert check.ok
+    assert str(primary) in check.detail
+
+
 def test_a_cli_credential_path_wins_over_env_and_dotenv(tmp_path):
     (tmp_path / ".env").write_text("PLOW_CREDENTIALS_PATH=./from-dotenv\n", encoding="utf-8")
     explicit = tmp_path / "explicit-credentials"
@@ -181,3 +209,12 @@ def test_main_exits_non_zero_when_a_blocking_check_fails(tmp_path, capsys, monke
     assert preflight.main(["--root", str(tmp_path), "--json"]) == 1
     payload = capsys.readouterr().out
     assert '"ready": false' in payload
+
+
+def test_agent_id_can_be_read_from_dotenv(tmp_path):
+    (tmp_path / ".env").write_text("AGENT_ID=galahad-hackathon\n", encoding="utf-8")
+
+    check = preflight.check_agent_id({}, tmp_path)
+
+    assert check.ok
+    assert check.detail == "galahad-hackathon"

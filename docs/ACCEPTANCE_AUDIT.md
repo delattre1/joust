@@ -23,7 +23,7 @@ runtime evidence nor client registration proves a public Verified listing.
 | Agent Index client pinned and integrity checked | `vendor/client.pin`, Docker build checksum step | PASS |
 | Agent Index reporter supervised | Live status registered; supervised usage report returned HTTP 200 for two rows | PASS (live runtime) |
 | Public Agent Index entry | Rendered `/agent-index/galahad-hackathon` page showed Galahad, GitHub install link, one active user, 119K tokens, and the Engineering story | PASS (public community listing) |
-| Public repository publication | `https://github.com/baskpascal/joust`, public `main`, linked from the Agent Index entry | PASS (public) |
+| Public repository publication | `https://github.com/santleme/joust`, public `main`, linked from the Agent Index entry; historical records may use the former `baskpascal/joust` URL | PASS (public) |
 | Chosen `AGENT_ID` wiring | Explicit compose env, reporter, and doctor check | PASS (local) |
 | Verified listing | Organizer eligibility surface, expected to open 2026-09-14 | EXTERNAL / NOT YET AVAILABLE |
 | Real-user activation trial | Fresh-session reply identified as Joust and reached delivery state `delivered` | PASS (live owner trial) |

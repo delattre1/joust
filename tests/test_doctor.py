@@ -72,3 +72,10 @@ def test_configured_credential_path_is_inspected_first(tmp_path):
         credential_candidates(tmp_path, environment={"PLOW_CREDENTIALS_PATH": "  "})[0]
         == tmp_path / "plow-credentials"
     )
+    assert credential_candidates(
+        tmp_path,
+        environment={
+            "PLOW_CREDENTIALS": "./compose-credential",
+            "PLOW_CREDENTIALS_PATH": "./path-credential",
+        },
+    )[0] == Path("compose-credential")

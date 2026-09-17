@@ -8,3 +8,11 @@
 plow-credentials
 tests
 docs
+.claude
+.firecrawl
+.joust-base-clone
+.knightwatch
+video
+dist
+build
+*.egg-info

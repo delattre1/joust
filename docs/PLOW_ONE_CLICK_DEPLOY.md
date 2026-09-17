@@ -18,6 +18,10 @@ variant, its Compose contract, and the small operator-facing wrapper in
 The wrapper never reads a Plow token, never constructs the private Plow API
 contract, and never deploys a mutable image tag.
 
+On Windows, the wrapper prefers the official CLI installed inside WSL because
+the CLI's credential checks use POSIX file semantics. It falls back to a native
+Windows CLI when WSL has no `plow-agents`; `-CliPath` is an explicit override.
+
 ## Hosted path
 
 ```text
@@ -59,9 +63,13 @@ reject. If Compose fails, the upstream CLI preserves the credential and agent
 for recovery; it does not silently revoke them.
 
 An existing Joust installation may intentionally keep its credential at a
-configured path such as `PLOW_CREDENTIALS_PATH`. The upstream `deploy --local`
+configured path such as `PLOW_CREDENTIALS` or `PLOW_CREDENTIALS_PATH`. The upstream `deploy --local`
 command writes `./plow-credentials`, so that existing installation should use
 the documented preflight and Compose path rather than creating a second agent.
+When Compose is run from WSL, a Linux path such as
+`/home/<user>/.config/joust/plow-credentials` is valid. When Compose is run
+from PowerShell, use the equivalent `\\wsl.localhost\Ubuntu\home\<user>\...`
+UNC path instead.
 
 ## Release invariants
 

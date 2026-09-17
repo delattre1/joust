@@ -13,13 +13,13 @@ Agent Index entry.
 - Community listing: live
 - Usage reporting: live
 - Verified: not yet; verification opened 2026-09-14 and `blessed_at` is still `""`
-- Public repository: `https://github.com/baskpascal/joust`
+- Public repository: `https://github.com/santleme/joust`
 - Default branch: `main`
 - Description: `Evidence-first Hermes agent that helps teams research, build, red-team, and package hackathon entries.`
 - Topics: `ai-agent`, `hackathon`, `hermes`, `plow`, `python`
 - Released commit: `a2a5e5a2e38240aef9d84aa46b33eae6b8e2648f` (139 files)
 - Validated local source bundle: `dist/joust-public.zip`
-- Install URL: `https://github.com/baskpascal/joust#readme`
+- Install URL: `https://github.com/santleme/joust#readme`
 - One-click install URL: pending Plow-team setup
 - Demo media: pending
 
@@ -43,6 +43,8 @@ Agent Index entry.
 ## Publication command shape
 
 The repository, metadata, install URL, and story were published on 2026-09-12.
+The canonical repository for the current checkout is `santleme/joust`; older
+publication records may still contain the former `baskpascal/joust` URL.
 The rendered public page confirmed the GitHub install link and the Engineering
 use case. Do not place the Plow credential or Agent Index key in source or
 publication commands.

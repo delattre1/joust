@@ -23,25 +23,43 @@ try {
     $script:cliExecutable = $null
     $script:wslExecutable = $null
 
+    function Get-DotEnvValue {
+        param([Parameter(Mandatory = $true)][string]$Key)
+
+        $dotenvPath = Join-Path $repositoryRoot ".env"
+        if (-not (Test-Path -LiteralPath $dotenvPath -PathType Leaf)) {
+            return $null
+        }
+        foreach ($line in (Get-Content -LiteralPath $dotenvPath)) {
+            if ($line -match "^\s*#" -or $line -notmatch "^\s*${Key}=(.*)$") {
+                continue
+            }
+            $value = $Matches[1].Trim()
+            if (($value.StartsWith('"') -and $value.EndsWith('"')) -or
+                ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+                $value = $value.Substring(1, $value.Length - 2)
+            }
+            return $value
+        }
+        return $null
+    }
+
     function Resolve-PlowAgents {
         param([string]$RequestedPath)
 
-        $candidate = if ([string]::IsNullOrWhiteSpace($RequestedPath)) {
-            Get-Command plow-agents -ErrorAction SilentlyContinue
-        } else {
-            Get-Command $RequestedPath -ErrorAction SilentlyContinue
-        }
-
-        if ($null -ne $candidate) {
-            $script:cliMode = "native"
-            $script:cliExecutable = $candidate.Source
-            return
-        }
-
         if (-not [string]::IsNullOrWhiteSpace($RequestedPath)) {
+            $candidate = Get-Command $RequestedPath -ErrorAction SilentlyContinue
+            if ($null -ne $candidate) {
+                $script:cliMode = "native"
+                $script:cliExecutable = $candidate.Source
+                return
+            }
             throw "The plow-agents CLI path does not exist or is not executable: $RequestedPath"
         }
 
+        # Prefer the WSL installation on Windows: the official CLI and its
+        # credential checks have POSIX semantics, and Docker Desktop exposes
+        # the same daemon to the integrated distro.
         $wsl = Get-Command wsl.exe -ErrorAction SilentlyContinue
         if ($null -ne $wsl) {
             $probe = & $wsl.Source -e sh -lc "command -v plow-agents" 2>$null
@@ -50,6 +68,13 @@ try {
                 $script:wslExecutable = $wsl.Source
                 return
             }
+        }
+
+        $candidate = Get-Command plow-agents -ErrorAction SilentlyContinue
+        if ($null -ne $candidate) {
+            $script:cliMode = "native"
+            $script:cliExecutable = $candidate.Source
+            return
         }
 
         throw "plow-agents was not found. Install the current official CLI or pass -CliPath."
@@ -113,7 +138,12 @@ try {
 
     # Fail before a local deploy can mint a line-scoped agent that Compose will
     # immediately reject for lack of the variant's stable Index identity.
-    if ($Local -and [string]::IsNullOrWhiteSpace($env:AGENT_ID)) {
+    $configuredAgentId = if (-not [string]::IsNullOrWhiteSpace($env:AGENT_ID)) {
+        $env:AGENT_ID
+    } else {
+        Get-DotEnvValue "AGENT_ID"
+    }
+    if ($Local -and [string]::IsNullOrWhiteSpace($configuredAgentId)) {
         throw "Set AGENT_ID to the stable Agent Index id before using -Local."
     }
 
@@ -126,8 +156,13 @@ try {
         if (-not [string]::IsNullOrWhiteSpace($Image)) {
             throw "-Image is only valid for a hosted deploy; omit it with -Local."
         }
-        if (-not [string]::IsNullOrWhiteSpace($env:PLOW_CREDENTIALS) -or
-            -not [string]::IsNullOrWhiteSpace($env:PLOW_CREDENTIALS_PATH)) {
+        $configuredCredential = @(
+            $env:PLOW_CREDENTIALS,
+            $env:PLOW_CREDENTIALS_PATH,
+            (Get-DotEnvValue "PLOW_CREDENTIALS"),
+            (Get-DotEnvValue "PLOW_CREDENTIALS_PATH")
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+        if (-not [string]::IsNullOrWhiteSpace($configuredCredential)) {
             throw "The official deploy --local path writes ./plow-credentials. Use the existing credential path with docker compose up, or unset PLOW_CREDENTIALS/PLOW_CREDENTIALS_PATH for a fresh local deploy."
         }
         if (-not [string]::IsNullOrWhiteSpace($AgentApiBase)) {

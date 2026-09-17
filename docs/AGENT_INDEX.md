@@ -23,9 +23,10 @@ and reporting, but not Verified eligibility; the organizer says verification
 opens on 2026-09-14.
 
 On 2026-09-13 the entry was re-registered with the Joust identity: the display
-name became Joust, the blurb was replaced with the "Joust it." product line,
-and `repo`/`install_url` moved to <https://github.com/baskpascal/joust> after
-the repository was renamed (GitHub serves a 301 from the former name). The
+name became Joust, the blurb was replaced with the "Joust it." product line.
+The current canonical repository is <https://github.com/santleme/joust>;
+older publication records used <https://github.com/baskpascal/joust> and GitHub
+may serve a redirect from that former URL. The
 `agent_id` stays `galahad-hackathon`, because it is the public URL and the key
 the Index counts installs against; renaming it would open a new entry and
 strand the recorded usage. The builder line reads "La brava", which comes from

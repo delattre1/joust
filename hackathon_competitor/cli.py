@@ -159,9 +159,10 @@ def credential_candidates(
     """Where the Plow token may live, most specific first.
 
     The first candidate is resolved the same way Compose itself would read
-    it — `PLOW_CREDENTIALS_PATH`, then the same key in a `.env` next to the
-    checkout, then the documented default — so the doctor never has to ask
-    an operator where a credential they already configured actually is.
+    it — `PLOW_CREDENTIALS`, then `PLOW_CREDENTIALS_PATH`, then those keys in
+    a `.env` next to the checkout, then the documented default — so the doctor
+    never has to ask an operator where a credential they already configured
+    actually is.
     Without it, a checkout on a filesystem that cannot hold POSIX modes
     would keep failing this check while the token the container actually
     reads is correctly protected somewhere else.

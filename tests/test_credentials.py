@@ -64,6 +64,17 @@ def test_env_var_takes_priority_over_dotenv(tmp_path):
     assert resolved == Path("from-env")
 
 
+def test_compose_credential_override_takes_priority_over_path_override(tmp_path):
+    resolved = resolve_credential_path(
+        repository_root=tmp_path,
+        environment={
+            "PLOW_CREDENTIALS": "./from-compose-override",
+            "PLOW_CREDENTIALS_PATH": "./from-path-override",
+        },
+    )
+    assert resolved == Path("from-compose-override")
+
+
 def test_credential_resolver_never_reads_secret_content(tmp_path):
     """Resolution must work even when the credential holds unreadable garbage.
 

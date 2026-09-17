@@ -175,21 +175,23 @@ def resolve_credential_path(
 ) -> Path:
     """The configured credential path, in the order Joust actually reads it.
 
-    An explicit `--credential-path`, then `PLOW_CREDENTIALS_PATH` in the
-    environment, then the same key in a `.env` next to the checkout (what
-    `docker compose` itself reads), then the documented `./plow-credentials`
-    default. An operator who has already configured any of the first three
-    should never be asked where their credential is.
+    An explicit `--credential-path`, then the Compose-compatible
+    `PLOW_CREDENTIALS`/`PLOW_CREDENTIALS_PATH` environment variables, then
+    those same keys in a `.env` next to the checkout, then the documented
+    `./plow-credentials` default. An operator who has already configured any
+    of the first four should never be asked where their credential is.
     """
 
     if cli_path:
         return Path(cli_path).expanduser()
-    configured = environment.get("PLOW_CREDENTIALS_PATH", "").strip()
-    if configured:
-        return Path(configured).expanduser()
-    dotenv_value = _dotenv_value(root / ".env", "PLOW_CREDENTIALS_PATH")
-    if dotenv_value:
-        return Path(dotenv_value).expanduser()
+    for key in ("PLOW_CREDENTIALS", "PLOW_CREDENTIALS_PATH"):
+        configured = environment.get(key, "").strip()
+        if configured:
+            return Path(configured).expanduser()
+    for key in ("PLOW_CREDENTIALS", "PLOW_CREDENTIALS_PATH"):
+        dotenv_value = _dotenv_value(root / ".env", key)
+        if dotenv_value:
+            return Path(dotenv_value).expanduser()
     return (root / "plow-credentials").expanduser()
 
 
@@ -210,6 +212,14 @@ def check_credential(
             detail=f"{path} does not exist",
             remedy=mint,
             facts={"path": str(path)},
+        )
+    if path.is_dir():
+        return Check(
+            "plow credential",
+            ok=False,
+            detail=f"{path} is a directory, not a credential file",
+            remedy=mint,
+            facts={"path": str(path), "is_directory": True},
         )
     if os.name == "nt":
         return Check("plow credential", ok=True, detail=f"{path} (Windows ACLs)")
@@ -239,8 +249,10 @@ def check_credential(
     )
 
 
-def check_agent_id(environment: dict[str, str]) -> Check:
+def check_agent_id(environment: dict[str, str], root: Path | None = None) -> Check:
     value = environment.get("AGENT_ID", "").strip()
+    if not value and root is not None:
+        value = (_dotenv_value(root / ".env", "AGENT_ID") or "").strip()
     return Check(
         "AGENT_ID",
         ok=bool(value),
@@ -275,7 +287,7 @@ def run_checks(
         checks.append(check_compose())
         checks.append(check_daemon())
     checks.append(check_credential(root, environment, cli_path=credential_path))
-    checks.append(check_agent_id(environment))
+    checks.append(check_agent_id(environment, root))
     checks.append(check_disk(root))
     return checks
 
@@ -307,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--credential-path",
         default=None,
-        help="the Plow credential file, overriding PLOW_CREDENTIALS_PATH and .env",
+        help="the Plow credential file, overriding PLOW_CREDENTIALS, PLOW_CREDENTIALS_PATH, and .env",
     )
     arguments = parser.parse_args(argv)
 
