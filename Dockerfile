@@ -3,7 +3,7 @@
 # package, and supervised Agent Index reporter.
 # Latest published base from the official main branch. Keep this immutable;
 # hosted provisioning injects the tenant environment at runtime.
-FROM public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-38aa7a70a5bb0b2daba30684a58e0361321f11e5@sha256:654753d1e0090f84c3718d5053f83b2bd8799d42c93edf6ddd6192b6db513152
+FROM public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-51f83158a70a383f03a4d03dbd8b6ea102cf0361@sha256:253d7ed3409effa7fa59113d93b4b79bb731d8264cdaf4cd60294924d0110a2e
 
 # GitHub is part of Joust's execution/observation plane. Keep the package
 # version explicit so a rebuild cannot silently change the CLI contract.
