@@ -45,11 +45,47 @@ When it says ready:
 docker compose up --build -d
 ```
 
-For a hosted/cloud Plow deployment, do not run `login` or `mint` in the tenant
-VM. The hosted image is credential-free and tenant-free: Plow supplies
-`PLOW_API_BASE` and the tenant identity (and proxies authentication when
-configured). The image is then registered through Plow's hosted registry and
-provisioner, which are not exposed by the public `plow-agents` CLI.
+### One-click Plow deploy
+
+The current official `plow-agents` CLI owns image publishing and the Plow
+deployment request. This repository only provides a thin PowerShell entrypoint
+that delegates to that CLI; it does not reimplement Plow's API or handle
+credentials.
+
+For a hosted/cloud deployment, log in to the container registry first and make
+the image public so Plow can pull it anonymously. The wrapper builds the image
+for `linux/amd64`, pushes it, extracts the immutable digest, and sends only that
+digest to Plow:
+
+```powershell
+docker login ghcr.io -u YOUR_GITHUB_USERNAME
+.\scripts\deploy.ps1 -Line ln_xxx -Image ghcr.io/YOUR_ACCOUNT/joust:v1
+```
+
+The installed CLI must be the current version containing `image`, `deploy`, and
+`agents`; the merged upstream contract is documented in the
+[`plow-agents` reference](https://github.com/plow-pbc/plow-agents#commands).
+Omit `-Line` only when the account has exactly one free line.
+
+For a fresh self-hosted Compose deployment, the same entrypoint delegates to
+the official local path. Set the stable Agent Index identity before starting:
+
+```powershell
+$env:AGENT_ID = "joust-hackathon"
+.\scripts\deploy.ps1 -Local -Line ln_xxx
+```
+
+`deploy --local` intentionally writes `./plow-credentials` and runs
+`docker compose up --build -d`. If this installation already uses a configured
+credential outside the checkout, keep that credential and run the preflight
+plus `docker compose up --build -d` path above instead of minting a second
+agent on the same line.
+
+For hosted/cloud deployment, do not run `login` or `mint` in the tenant VM. The
+hosted image is credential-free and tenant-free: Plow supplies `PLOW_API_BASE`
+and the tenant identity (and proxies authentication when configured). The
+`plow-agents deploy` request reaches Plow's hosted registry/provisioner; those
+server-side components remain Plow-owned.
 
 The image contains no Plow or GitHub credentials. In self-hosted Compose,
 `env_file` supplies the line-scoped credential at runtime; hosted Plow supplies

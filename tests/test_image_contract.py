@@ -102,3 +102,15 @@ def test_docs_distinguish_self_hosted_credentials_from_hosted_identity():
     assert "env_file" in readme
     assert "PLOW_API_BASE" in readme
     assert "mounts the Plow credential at runtime" not in readme
+
+
+def test_one_click_wrapper_delegates_to_current_official_cli_without_secrets():
+    wrapper = (ROOT / "scripts/deploy.ps1").read_text()
+    assert "plow-agents" in wrapper
+    assert '"image", "build"' in wrapper
+    assert '"image", "push"' in wrapper
+    assert '"deploy"' in wrapper
+    assert "sha256:[0-9a-f]{64}" in wrapper
+    assert "--local" in wrapper
+    assert "PLOW_AGENT_TOKEN" not in wrapper
+    assert "PLOW_API_BASE" not in wrapper

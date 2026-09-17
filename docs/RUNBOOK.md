@@ -7,15 +7,26 @@ tests, and `doctor`. The fixture E2E is offline and makes no external writes.
 
 ## Plow deployment
 
-For a self-hosted run, use the public CLI to log in, list lines, and mint a
-line-scoped credential; Compose loads it through `env_file` and keeps it out of
-the image and Git. For a hosted/cloud run, do not run `login` or `mint` in the
-tenant VM: the Plow provisioner supplies `PLOW_API_BASE` and the tenant
-identity, and may proxy authentication without exposing a raw bearer there.
-The hosted registry/provisioner handoff is Plow-side, not a command in the
-public `plow-agents` CLI. Verified status is a separate eligibility request;
-the agent is eligible for the competition only after the Agent Index shows it
-in the Verified section.
+The current public CLI owns the one-click deployment contract. From this
+checkout, `scripts/deploy.ps1 -Image ghcr.io/account/joust:v1 -Line ln_xxx`
+builds for `linux/amd64`, pushes the image, captures the resulting
+`repository@sha256:<digest>`, and delegates the hosted request to
+`plow-agents deploy`. The wrapper never sends a mutable tag to Plow. The
+registry package must be public for Plow's anonymous pull.
+
+For a fresh self-hosted run, set `AGENT_ID` and use
+`scripts/deploy.ps1 -Local -Line ln_xxx`. The upstream local path validates
+`.dockerignore`, mints `./plow-credentials`, and runs Compose. Existing Joust
+installations with a configured credential path should use `scripts/preflight.py`
+and `docker compose up --build -d`, because `deploy --local` intentionally owns
+the default `./plow-credentials` path.
+
+The hosted image is credential-free and tenant-free. Plow supplies
+`PLOW_API_BASE`, the cloud identity, and any hosted authentication proxy inside
+its provisioned runtime. Hosted registry pull and tenant lifecycle remain
+Plow-side; `plow-agents agents` is the authoritative request/status check.
+Verified status is separate from deployment and requires the Agent Index
+eligibility flow.
 
 ## Operational chat channel
 

@@ -51,13 +51,14 @@ the URL-to-PRD path before the deeper backlog is added.
 
 An authenticated `/init` boot through the real Hermes/Plow channel is now
 validated in the live compose runtime with the owner's line-scoped
-`plow-credentials` and the operator-chosen stable `AGENT_ID`. The credential was
-generated with `plow-agents login`/`mint`; the id is not supplied by Plow. The V0
-does not perform final submission, attest legal terms, or claim an
-organizer-verified Agent Index listing. Verified eligibility is a separate
-external step expected to open on 2026-09-14. Real-user activation and
-rehearsal against the event's live official source remain explicit mission
-tasks.
+`plow-credentials` and the operator-chosen stable `AGENT_ID`. The current
+public `plow-agents` CLI additionally owns the digest-only image build/push and
+hosted deploy request. The hosted image pull, tenant provisioning, and runtime
+lifecycle remain Plow-side and require live status confirmation. The V0 does
+not perform final submission, attest legal terms, or claim an organizer-verified
+Agent Index listing. Verified eligibility is a separate external step. Real-user
+activation and rehearsal against the event's live official source remain
+explicit mission tasks.
 
 ## Current SDD audit — 2026-09-13
 
@@ -75,7 +76,7 @@ The current evidence boundary is:
 | GitHub project connection | Typed `gh` adapter supports lookup, read-only clone/bootstrap, branches, push, PR, and checks; publication is approval-bound | PARTIAL (live clone/push/PR not exercised) |
 | Coding agent integration | Dedicated `HermesImplementer` plus a live Joust cycle created and validated a three-file Python project with 16 generated tests and clean-clone reproduction | PASS (live model-backed local E2E) |
 | Target-bound submission pack | `prepare-project-submission` generates repository/branch/SHA/diff-bound artifacts and requires final review, compliance, tests, demo, and clean-clone evidence | PASS (local E2E) |
-| Hosted Plow deploy, demo media, Verified | Variant image is ready; hosted registry/provisioner handoff, demo media, and Verified remain Plow-side/external | EXTERNAL / BLOCKED |
+| Hosted Plow deploy, demo media, Verified | Variant image and the official digest-only deploy handoff are ready; hosted registry/provisioner execution, demo media, and Verified remain Plow-side/external | READY FOR HANDOFF / EXTERNAL |
 
 The remaining partial rows are deliberate authority boundaries, not hidden claims:
 the local build can prove a commit and reproducibility without pretending that a
