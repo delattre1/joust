@@ -9,7 +9,7 @@ Generic boot, chat, Latch, and Hermes behavior remain upstream.
 ## ADR-002 — Agent Index integration
 
 Use the official `plow-pbc/agent-index-client` at reviewed commit
-`f900ff144076f0a766584b6ec4d0993600779b16`, verify SHA-256 at image build,
+`87901f8b182a8a7c65ee3dd7267f8f835ee2a545`, verify SHA-256 at image build,
 and invoke it from a supervised `s6` longrun. Joust implements no parallel
 registration/reporting protocol.
 
