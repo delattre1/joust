@@ -10,7 +10,8 @@ def test_doctor_reports_required_runtime_surfaces(tmp_path, monkeypatch):
     # Every check this process actually controls. Overall health additionally
     # depends on the host's credential file, which is deliberately covered by
     # its own test rather than asserted through whatever the machine happens
-    # to have on disk.
+    # to have on disk. agent_index_service comes from the base image, so it
+    # only exists inside the container.
     for name in (
         "state_directory",
         "workspace",
@@ -19,7 +20,6 @@ def test_doctor_reports_required_runtime_surfaces(tmp_path, monkeypatch):
         "skills",
         "plow_tools",
         "agent_id",
-        "agent_index_service",
     ):
         assert checks[name]["ok"], (name, checks[name])
 

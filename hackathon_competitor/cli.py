@@ -255,11 +255,10 @@ def doctor(home: Path | None = None) -> tuple[dict[str, dict[str, object]], bool
         "bound": bound_identity is not None,
         "matches_bound_identity": identity_matches,
     }
-    service_candidates = [
-        repo_root / "image/s6-overlay/s6-rc.d/agent-index/run",
-        Path("/etc/s6-overlay/s6-rc.d/agent-index/run"),
-    ]
-    checks["agent_index_service"] = {"ok": any(path.is_file() for path in service_candidates)}
+    # The base image ships this service; it exists only inside the container.
+    checks["agent_index_service"] = {
+        "ok": Path("/etc/s6-overlay/s6-rc.d/agent-index/run").is_file()
+    }
     client = Path("/opt/plow/agent-index-client.py")
     if client.is_file():
         smoke_environment = os.environ.copy()

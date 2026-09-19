@@ -1,7 +1,7 @@
 # Agent Index integration
 
-The image downloads the official client named in `vendor/client.pin`, verifies
-its SHA-256, and runs it as the unprivileged Hermes user under `s6`.
+The Plow base image ships the official client and its `agent-index` `s6`
+service; this repo does not carry a copy.
 
 `AGENT_ID` is an immutable external identifier. It is not the product name.
 It is operator-chosen (for example,
