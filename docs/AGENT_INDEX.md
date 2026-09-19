@@ -40,5 +40,7 @@ Generate the credential locally with `plow-agents login`, select a free line
 with `plow-agents lines`, and run `plow-agents mint <line-id>`. The resulting
 `./plow-credentials` file is secret-bearing and must remain outside GitHub.
 
-To update the client, review the upstream change, replace both the 40-character
-commit and SHA-256, build the image, and run the service tests.
+The client and its supervised `agent-index` service come from the Plow base
+image; this repo carries no copy. To update them, bump the `FROM` line to a
+newer immutable `base-<sha>@sha256:<digest>` tag, update the same tag in
+`tests/test_image_contract.py`, build the image, and run the tests.
